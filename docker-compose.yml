@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  beanstalk:
+    image: docker.io/schickling/beanstalkd:latest
+    ports:
+      - 21300:11300
+  gearman:
+    image: docker.io/artefactual/gearmand:latest
+    ports:
+      - 24730:4730
+  mysql:
+    image: docker.io/mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: hellowo
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      TZ: 'Asia/Tokyo'
+    command: [ "--log_bin_trust_function_creators=1" ]
+    ports:
+      - 23306:3306
+  rabbitmq:
+    image: docker.io/rabbitmq:latest
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - 25672:5672

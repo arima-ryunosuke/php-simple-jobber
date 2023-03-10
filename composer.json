@@ -1,0 +1,63 @@
+{
+  "config": {
+    "platform": {
+      "php": "7.4.6"
+    }
+  },
+  "name": "ryunosuke/hellowo",
+  "type": "library",
+  "description": "simple job worker",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "ryunosuke",
+      "email": "ryunosuke.arima@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "psr/log": "*"
+  },
+  "require-dev": {
+    "pda/pheanstalk": "4.*",
+    "kicken/gearman-php": "1.*",
+    "php-amqplib/php-amqplib": "3.*",
+    "symfony/process": "5.*",
+    "phpunit/phpunit": "9.*",
+    "ryunosuke/phpunit-extension": "3.*"
+  },
+  "suggest": {
+    "ext-pcntl": "Required on substantially",
+    "ext-inotify": "Required depending on the driver",
+    "ext-gearman": "Required depending on the driver",
+    "ext-mysqli": "Required depending on the driver",
+    "pda/pheanstalk": "Required depending on the driver",
+    "php-amqplib/php-amqplib": "Required depending on the driver"
+  },
+  "autoload": {
+    "psr-4": {
+      "ryunosuke\\hellowo\\": "src/hellowo"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "ryunosuke\\Test\\": "tests/Test"
+    }
+  },
+  "scripts": {
+    "build": [
+      "@test",
+      "@stress"
+    ],
+    "test": [
+      "php vendor/phpunit/phpunit/phpunit --configuration=tests/phpunit.xml"
+    ],
+    "stress": [
+      "sh tests/integration.sh filesystem",
+      "sh tests/integration.sh beanstalk",
+      "sh tests/integration.sh gearman",
+      "sh tests/integration.sh mysql",
+      "sh tests/integration.sh rabbitmq"
+    ]
+  }
+}
