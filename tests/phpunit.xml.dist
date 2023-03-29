@@ -1,0 +1,30 @@
+<phpunit
+        bootstrap="bootstrap.php"
+        backupGlobals="true"
+        colors="true"
+        verbose="true"
+        printerClass="\ryunosuke\PHPUnit\Printer\ProgressPrinter"
+>
+    <testsuites>
+        <testsuite name="tests">
+            <directory>./Test/</directory>
+        </testsuite>
+    </testsuites>
+
+    <php>
+        <const name="FILESYSTEM_URL" value="filesystem://127.0.0.1/tmp/hellowo.testjob"/>
+        <const name="GEARMAN_URL" value="gearman://127.0.0.1:4730/testjobs"/>
+        <const name="BEANSTALK_URL" value="beanstalk://127.0.0.1:21300/testjobs"/>
+        <const name="MYSQL_URL" value="mysql://user:password@127.0.0.1:23306/hellowo.testjobs"/>
+        <const name="RABBITMQ_URL" value="rabbitmq://user:password@127.0.0.1:25672/testjobs"/>
+    </php>
+
+    <coverage>
+        <include>
+            <directory suffix=".php">../src/hellowo</directory>
+        </include>
+        <exclude>
+            <directory suffix=".php">../src/hellowo/ext</directory>
+        </exclude>
+    </coverage>
+</phpunit>

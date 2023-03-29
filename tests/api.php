@@ -1,0 +1,65 @@
+<?php
+
+use Psr\Log\AbstractLogger;
+use ryunosuke\hellowo\Client;
+use ryunosuke\hellowo\Driver\AbstractDriver;
+use ryunosuke\hellowo\Message;
+use ryunosuke\hellowo\Worker;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../src/hellowo/ext/gearman.php';
+
+// create driver
+$driver = (function (string $url) {
+    $xmls       = array_filter([__DIR__ . '/phpunit.xml', __DIR__ . '/phpunit.xml.dist'], 'file_exists');
+    $phpuni_xml = simplexml_load_file($xmls[0]);
+    $constants  = [];
+    foreach ($phpuni_xml->php->const as $sxe) {
+        $constants[(string) $sxe['name']] = (string) $sxe['value'];
+    }
+    if (isset($constants[$constname = (strtoupper($url) . '_URL')])) {
+        $url = $constants[$constname];
+    }
+
+    return AbstractDriver::create($url, [
+        'waittime' => 1,
+        'waitmode' => 'php',
+    ]);
+})($argv[1] ?? '');
+
+// run by mode
+(function (AbstractDriver $driver, string $mode, string $contents, ?int $priority, ?float $delay) {
+    switch ($mode) {
+        case 'clear':
+            $client = new Client([
+                'driver' => $driver,
+            ]);
+            $client->setup(true);
+            $client->clear();
+            return;
+
+        case 'client':
+            $client = new Client([
+                'driver' => $driver,
+            ]);
+            $client->send($contents, $priority, $delay);
+            return;
+
+        case 'worker':
+            $worker = new Worker([
+                'work'   => function (Message $message): string {
+                    fwrite(STDOUT, "$message\n");
+                    return $message;
+                },
+                'driver' => $driver,
+                'logger' => new class() extends AbstractLogger {
+                    public function log($level, $message, array $context = [])
+                    {
+                        fwrite(STDERR, date('Y/m/d H:i:s') . ":$message\n");
+                    }
+                },
+            ]);
+            $worker->start();
+            return;
+    }
+})($driver, $argv[2] ?? '', $argv[3] ?? '', ($argv[4] ?? '') ?: null, ($argv[5] ?? '') ?: null);
