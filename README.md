@@ -1,0 +1,188 @@
+hellowo
+====
+
+## Description
+
+This package is simple job worker.
+
+## Install
+
+```json
+{
+    "require": {
+        "ryunosuke/hellowo": "dev-master"
+    }
+}
+```
+
+This requires `pcntl` extension. Also, Windows only works minimally.
+
+## Feature
+
+### Driver
+
+Driver features:
+
+| feature                      | FileSystem      | Gearman         | Beanstalk       | MySql           | RabbitMQ        |
+|------------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| simply                       | very high       | high            | high            | middle          | low             |
+| pull or push(*1)             | pull            | push            | push            | pull            | push            |
+| multi worker server          | optional(*2)    | yes             | yes             | yes             | yes             |
+| not lost to sudden death(*3) | yes (ttr)       | no              | yes (ttr)       | yes (kill)      | yes (heartbeat) |
+| priority job                 | yes             | yes             | yes             | yes             | yes             |
+| delay job                    | yes             | no              | yes             | yes             | optional(*4)    |
+| managed retry                | no              | no              | no              | no              | yes             |
+| clustering                   | no              | no              | no              | optional(*5)    | yes             |
+
+- *1 push is almost real-time, but pull has time lag due to polling
+- *2 e.g. NFS
+- *3 Except for FileSystem, TCP keepalive can be enabled to some extent
+- *4 e.g. rabbitmq-delayed-message-exchange, Deadletter exchange
+- *5 e.g. Replication, Fabric, NDB
+
+### Worker
+
+The recommended process manager is systemd.
+Also, the basic operation is in series. If you want to run multiple jobs in parallel, you need to launch multiple processes.
+
+SIGALRM is used to implement the timeout, so it cannot be used by the user.
+When it receives an SIGTERM or SIGINT, it waits for the currently running job until stopping it. Therefore, in some cases, it may take a long time to stop (see TimeoutStopSec of systemd).
+
+Default logging, operation log is written to STDOUT. php error log is written to STDERR.
+Operation log can be changed by overriding the `logger` option.
+php error log uses system default. This can be changed by php.ini or ini_set.
+
+### Client
+
+Client is a simple class from which only the request part of the driver is extracted.
+You can use any client to send jobs without using this class.
+
+- e.g. filesystem: `touch /path/to/job.txt`
+- e.g. mysql: `INSERT INTO jobs(message) VALUES("foo")`
+
+## Demo
+
+- Driver: mysql
+- Parallel: 4
+- Log: /var/log/hellowo
+
+require root.
+
+### ready
+
+```bash
+sudo su -
+RUNSCRIPT=/path/to/example.php
+```
+
+### ready worker
+
+```bash
+cat << 'EOS' > $RUNSCRIPT
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
+$worker = new ryunosuke\hellowo\Worker([
+    'work'   => function (ryunosuke\hellowo\Message $message) {
+        file_put_contents('/var/log/hellowo/receive.log', "$message\n", FILE_APPEND | LOCK_EX);
+    },
+    'driver' => new ryunosuke\hellowo\Driver\MySqlDriver([
+        'waittime'  => 30.0,
+        'waitmode' => 'sql',
+        'mysql'      => [
+            'host'     => '127.0.0.1',
+            'user'     => 'root',
+            'password' => 'password',
+            'database' => 'test',
+        ],
+        // job table name
+        'table'    => 't_job',
+    ]),
+]);
+$worker->start();
+EOS
+```
+
+### ready systemd
+
+```bash
+cat << EOS > /etc/systemd/system/example@.service
+[Unit]
+After=network.target
+PartOf=example.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/mkdir -p /var/log/hellowo
+ExecStart=/bin/sh -c 'exec /usr/bin/php $RUNSCRIPT 1>/var/log/hellowo/stdout-%i.log 2>/var/log/hellowo/stderr-%i.log'
+TimeoutStopSec=90s
+Restart=always
+
+[Install]
+EOS
+
+cat << EOS > /etc/systemd/system/example.target
+[Unit]
+Wants=example@1.service
+Wants=example@2.service
+Wants=example@3.service
+Wants=example@4.service
+
+[Install]
+WantedBy=multi-user.target
+EOS
+
+systemctl daemon-reload
+systemctl restart example.target
+systemctl status example@*
+```
+
+### send data
+
+```bash
+cat << EOS | mysql -h 127.0.0.1 -u root test
+INSERT INTO t_job (message)
+WITH RECURSIVE seq (n) AS
+(
+  SELECT 1
+  UNION ALL
+  SELECT n + 1 FROM seq WHERE n < 100
+)
+SELECT CONCAT("data-", n) FROM seq;
+EOS
+```
+
+### output log
+
+```bash
+cat /var/log/hellowo/stdout-*.log
+[Y-m-dTH:i:s.v][1045984] ...
+[Y-m-dTH:i:s.v][1045984] ...
+[Y-m-dTH:i:s.v][1045984] ...
+
+cat -n /var/log/hellowo/receive.log
+data-8
+data-17
+data-15
+...
+data-98
+data-96
+data-99
+```
+
+## License
+
+MIT
+
+## Release
+
+Versioning is romantic versioning(no semantic versioning).
+
+- major: large BC break. e.g. change architecture, package, class etc
+- minor: small BC break. e.g. change arguments, return type etc
+- patch: no BC break. e.g. fix bug, add optional arguments, code format etc
+
+notice: major 0 is developing version.
+
+### 0.0.0
+
+- publish
