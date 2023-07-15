@@ -133,7 +133,12 @@ class AbstractDriverTest extends AbstractTestCase
         $procdir = sys_get_temp_dir() . '/hellowo/proc';
         @mkdir("$procdir/999", 0777, true);
 
-        $driver = that(new class ( "" ) extends AbstractDriver { });
+        $driver = that(new class ("") extends AbstractDriver {
+            protected function notify(int $count = 1): int
+            {
+                return count(parent::notifyLocal($count));
+            }
+        });
 
         $driver->normalizeParams([])->is([]);
 

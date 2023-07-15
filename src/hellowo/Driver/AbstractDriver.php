@@ -4,7 +4,6 @@ namespace ryunosuke\hellowo\Driver;
 
 use ReflectionMethod;
 use ryunosuke\hellowo\API;
-use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\hellowo\ext\posix;
 
 abstract class AbstractDriver extends API
@@ -188,30 +187,6 @@ abstract class AbstractDriver extends API
     protected function daemonize(): void
     {
         posix::proc_cmdline(posix::proc_cmdline() . '#hellowo');
-    }
-
-    protected function notify(int $count = 1): int
-    {
-        $processes = array_keys(posix::pgrep('#hellowo'));
-        shuffle($processes);
-
-        $result = 0;
-        foreach ($processes as $pid) {
-            $killed = false;
-
-            if ($pid !== getmypid()) {
-                $killed = posix::kill($pid, pcntl::SIGUSR1);
-            }
-
-            if ($killed) {
-                $result++;
-            }
-            if ($result >= $count) {
-                break;
-            }
-        }
-
-        return $result;
     }
 
     /**

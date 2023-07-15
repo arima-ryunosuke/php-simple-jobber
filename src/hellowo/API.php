@@ -4,6 +4,7 @@ namespace ryunosuke\hellowo;
 
 use Exception;
 use ryunosuke\hellowo\ext\pcntl;
+use ryunosuke\hellowo\ext\posix;
 use Throwable;
 
 // @codeCoverageIgnoreStart
@@ -28,6 +29,34 @@ abstract class API
     public static string $processDirectory = processDirectory;
 
     /**
+     * @param int $count
+     * @return array notified pid
+     */
+    public static function notifyLocal(int $count = 1): array
+    {
+        $processes = array_keys(posix::pgrep('#hellowo'));
+        shuffle($processes);
+
+        $result = [];
+        foreach ($processes as $pid) {
+            $killed = false;
+
+            if ($pid !== getmypid()) {
+                $killed = posix::kill($pid, pcntl::SIGUSR1);
+            }
+
+            if ($killed) {
+                $result[] = $pid;
+            }
+            if (count($result) >= $count) {
+                break;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * setup schema etc
      *
      * @return void
@@ -46,7 +75,7 @@ abstract class API
      *
      * @return int
      */
-    protected function notify(int $count = 1): int { }
+    protected function notify(int $count = 1): int { return 0; }
 
     /**
      * select next message

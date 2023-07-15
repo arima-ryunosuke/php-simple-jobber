@@ -236,7 +236,7 @@ class MySqlDriver extends AbstractDriver
             return $this->execute("SELECT {$this->table}_awake(?) AS c", [$count])[0]['c'];
         }
         elseif ($this->waitmode === 'php') {
-            return parent::notify($count);
+            return count(parent::notifyLocal($count));
         }
     }
 
