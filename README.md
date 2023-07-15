@@ -183,6 +183,10 @@ Versioning is romantic versioning(no semantic versioning).
 
 notice: major 0 is developing version.
 
+### 0.1.0
+
+- [change] move notify to notifyLocal
+
 ### 0.0.0
 
 - publish
