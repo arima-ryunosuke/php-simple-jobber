@@ -32,6 +32,7 @@ class MySqlDriver extends AbstractDriver
         ];
     }
 
+    private array   $transport;
     private ?mysqli $connection;
     private string  $table;
 
@@ -72,6 +73,7 @@ class MySqlDriver extends AbstractDriver
             $transport['user']     = $transport['username']; // for compatible php7/8
             $transport['database'] = $options['database'];   // for compatible php7/8
             $transport['socket']   = null;                   // for compatible php7/8
+            $this->transport       = $transport;
             $transport             = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $transport));
         }
         $this->connection = $transport;
@@ -259,7 +261,16 @@ class MySqlDriver extends AbstractDriver
             do {
                 $read = $error = $reject = [$this->connection];
                 if (@mysqli::poll($read, $error, $reject, 1) === false) {
-                    return; // @codeCoverageIgnore
+                    // @codeCoverageIgnoreStart
+                    if (isset($this->transport)) {
+                        // killed by other connection for USR1
+                        $mysqli = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $this->transport));
+                        $mysqli->prepare("KILL QUERY {$this->connection->thread_id}")->execute();
+                        $mysqli->close();
+                        $this->connection->reap_async_query();
+                    }
+                    return;
+                    // @codeCoverageIgnoreEnd
                 }
                 foreach ($read as $mysqli) {
                     $result = $mysqli->reap_async_query();
