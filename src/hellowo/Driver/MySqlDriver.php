@@ -114,48 +114,51 @@ class MySqlDriver extends AbstractDriver
 
         if ($this->waitmode === 'sql') {
             // function
-            $this->connection->query(<<<SQL
-                CREATE FUNCTION IF NOT EXISTS {$this->table}_awake(kill_count BIGINT) RETURNS BIGINT
-                LANGUAGE SQL NOT DETERMINISTIC READS SQL DATA
-                BEGIN
-                    DECLARE result    BIGINT DEFAULT 0;
-                    DECLARE processId BIGINT UNSIGNED;
-                    DECLARE done      INT DEFAULT FALSE;
-                    DECLARE processes CURSOR FOR
-                        SELECT ID
-                        FROM information_schema.PROCESSLIST
-                        WHERE DB      = DATABASE()
-                            AND STATE = "User sleep"
-                            AND INFO  LIKE '/*by {$this->table}*/%'
-                        ORDER BY TIME DESC
-                        LIMIT kill_count
-                    ;
-                    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-                    
-                    OPEN processes;
-                        read_loop: LOOP
-                            FETCH processes INTO processId;
-                            
-                            IF done THEN
-                                LEAVE read_loop;
-                            END IF;
-                            
-                            KILL QUERY processId;
-                            SET result = result + 1;
-                        END LOOP;
-                    CLOSE processes;
-                    
-                    RETURN result;
-                END
-                SQL
-            );
+            // separate statement. because "CREATE FUNCTION IF NOT EXISTS" is not supported mysql version
+            if (!$this->connection->query("SELECT 1 FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = '{$this->table}_awake'")->num_rows) {
+                $this->connection->query(<<<SQL
+                    CREATE FUNCTION {$this->table}_awake(kill_count BIGINT) RETURNS BIGINT
+                    LANGUAGE SQL NOT DETERMINISTIC READS SQL DATA
+                    BEGIN
+                        DECLARE result    BIGINT DEFAULT 0;
+                        DECLARE processId BIGINT UNSIGNED;
+                        DECLARE done      INT DEFAULT FALSE;
+                        DECLARE processes CURSOR FOR
+                            SELECT ID
+                            FROM information_schema.PROCESSLIST
+                            WHERE DB      = DATABASE()
+                                AND STATE = "User sleep"
+                                AND INFO  LIKE '/*by {$this->table}*/%'
+                            ORDER BY TIME DESC
+                            LIMIT kill_count
+                        ;
+                        DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+                        
+                        OPEN processes;
+                            read_loop: LOOP
+                                FETCH processes INTO processId;
+                                
+                                IF done THEN
+                                    LEAVE read_loop;
+                                END IF;
+                                
+                                KILL QUERY processId;
+                                SET result = result + 1;
+                            END LOOP;
+                        CLOSE processes;
+                        
+                        RETURN result;
+                    END
+                    SQL
+                );
+            }
 
             if ($this->trigger) {
                 // trigger
                 // separate statement. because "CREATE TRIGGER IF NOT EXISTS" also causes metadata lock
                 if (!$this->connection->query("SELECT 1 FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = '{$this->table}_awake_trigger'")->num_rows) {
                     $this->connection->query(<<<SQL
-                        CREATE TRIGGER IF NOT EXISTS {$this->table}_awake_trigger AFTER INSERT ON {$this->table} FOR EACH ROW
+                        CREATE TRIGGER {$this->table}_awake_trigger AFTER INSERT ON {$this->table} FOR EACH ROW
                         DO {$this->table}_awake(1)
                         SQL
                     );
