@@ -155,6 +155,8 @@ abstract class API
             public function onRetry(Message $message, Throwable $t): void { }
 
             public function onTimeout(Message $message, Throwable $t): void { }
+
+            public function onCycle(int $cycle): void { }
         };
     }
 }

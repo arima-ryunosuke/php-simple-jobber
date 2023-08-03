@@ -146,6 +146,7 @@ class WorkerTest extends AbstractTestCase
             "timeout" => ["3"],
             "retry"   => ["4", "4", "4"],
             "done"    => ["4", "5"],
+            "cycle"   => [0, 1, 2, 3, 4, 5, 6, 7],
         ]);
     }
 

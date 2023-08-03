@@ -80,6 +80,7 @@ class Worker extends API
         }
 
         // main loop
+        $cycle = 0;
         $this->logger->info("begin: {$this->logString($this->driver)}");
         while ($running) {
             try {
@@ -118,9 +119,11 @@ class Worker extends API
                     }
                 }
 
-                $this->logger->debug("cycle: ");
+                $this->logger->debug("cycle: {$cycle}");
+                $this->listener->onCycle($cycle);
                 pcntl::signal_dispatch();
                 gc_collect_cycles();
+                $cycle++;
             }
             catch (Exception $e) {
                 $this->logger->error("error: {$this->logString($e)}");

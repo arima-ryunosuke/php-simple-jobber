@@ -79,4 +79,9 @@ class ArrayListener implements Listener
     {
         $this->events['timeout'][] = $message->getId();
     }
+
+    public function onCycle(int $cycle): void
+    {
+        $this->events['cycle'][] = $cycle;
+    }
 }
