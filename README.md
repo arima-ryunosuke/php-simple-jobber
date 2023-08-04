@@ -183,6 +183,12 @@ Versioning is romantic versioning(no semantic versioning).
 
 notice: major 0 is developing version.
 
+### 0.2.0
+
+- [fixbug] fixed "Commands out of sync" when receive USR1
+- [fixbug] deleted IF EXISTS from mysql driver
+- [feature] added listen cycle event
+
 ### 0.1.0
 
 - [change] move notify to notifyLocal
