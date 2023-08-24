@@ -32,8 +32,8 @@ class RabbitMqDriver extends AbstractDriver
         ];
     }
 
-    private ?AbstractConnection $connection;
-    private ?AMQPChannel        $channel;
+    private AbstractConnection $connection;
+    private AMQPChannel        $channel;
 
     private float  $waittime;
     private string $queue;
@@ -202,10 +202,10 @@ class RabbitMqDriver extends AbstractDriver
     {
         $this->channel->basic_recover(true);
         $this->channel->close();
-        $this->channel = null;
+        unset($this->channel);
 
         $this->connection->close();
-        $this->connection = null;
+        unset($this->connection);
 
         gc_collect_cycles();
     }

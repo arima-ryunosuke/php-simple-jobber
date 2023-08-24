@@ -31,8 +31,8 @@ class GearmanDriver extends AbstractDriver
     private int    $port;
     private string $function;
 
-    private ?GearmanClient $client;
-    private ?GearmanWorker $worker;
+    private GearmanClient $client;
+    private GearmanWorker $worker;
 
     private array $buffer = [];
 
@@ -110,10 +110,10 @@ class GearmanDriver extends AbstractDriver
         foreach ($this->buffer as $job) {
             $this->client->doBackground($this->function, $job->getContents());
         }
-        $this->client = null;
+        unset($this->client);
 
         $this->worker->unregisterAll();
-        $this->worker = null;
+        unset($this->worker);
 
         gc_collect_cycles();
     }

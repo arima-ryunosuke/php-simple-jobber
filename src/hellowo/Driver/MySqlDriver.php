@@ -32,9 +32,9 @@ class MySqlDriver extends AbstractDriver
         ];
     }
 
-    private array   $transport;
-    private ?mysqli $connection;
-    private string  $table;
+    private array  $transport;
+    private mysqli $connection;
+    private string $table;
 
     private float  $waittime;
     private string $waitmode;
@@ -214,7 +214,7 @@ class MySqlDriver extends AbstractDriver
     protected function close(): void
     {
         $this->connection->close();
-        $this->connection = null;
+        unset($this->connection);
 
         gc_collect_cycles();
     }

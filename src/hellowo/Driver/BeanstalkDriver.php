@@ -26,7 +26,7 @@ class BeanstalkDriver extends AbstractDriver
         ];
     }
 
-    private ?Pheanstalk $connection;
+    private Pheanstalk $connection;
 
     private float $waittime;
 
@@ -79,7 +79,7 @@ class BeanstalkDriver extends AbstractDriver
 
     protected function close(): void
     {
-        $this->connection = null;
+        unset($this->connection);
 
         gc_collect_cycles();
     }
