@@ -11,6 +11,7 @@ use ryunosuke\hellowo\Exception\RetryableException;
 use ryunosuke\hellowo\Exception\TimeoutException;
 use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\hellowo\Logger\EchoLogger;
+use Throwable;
 
 class Worker extends API
 {
@@ -126,11 +127,15 @@ class Worker extends API
                 $cycle++;
             }
             catch (Exception $e) {
-                $this->logger->error("error: {$this->logString($e)}");
+                $this->logger->error("exception: {$this->logString($e)}");
                 if ($this->driver->error($e)) {
                     break;
                 }
                 usleep(0.1 * 1000 * 1000);
+            }
+            catch (Throwable $t) {
+                $this->logger->critical("error: {$this->logString($t)}");
+                throw $t;
             }
         }
 
@@ -142,7 +147,7 @@ class Worker extends API
     private function logString($log_data): string
     {
         $stringify = function (&$v) {
-            if ($v instanceof Exception) {
+            if ($v instanceof Throwable) {
                 $v = sprintf('caught %s(%s, %s) in %s:%s', get_class($v), $v->getCode(), $v->getMessage(), $v->getFile(), $v->getLine());
             }
             if (is_resource($v) || (is_object($v) && method_exists($v, '__toString'))) {

@@ -5,6 +5,7 @@ namespace ryunosuke\Test\hellowo;
 use ArrayListener;
 use ArrayLogger;
 use Closure;
+use Error;
 use Exception;
 use LogicException;
 use Psr\Log\NullLogger;
@@ -184,7 +185,7 @@ class WorkerTest extends AbstractTestCase
         that($logs)->notContains(pcntl::SIGTERM);
     }
 
-    function test_error()
+    function test_exception()
     {
         $worker = new Worker([
             'work'    => function () { throw new Exception(); },
@@ -208,11 +209,37 @@ class WorkerTest extends AbstractTestCase
         $worker->start();
 
         that($logs)->matchesCountEquals([
+            '#^start:#'     => 1,
+            '#^begin:#'     => 1,
+            '#^job:#'       => null,
+            '#^exception:#' => 1,
+            '#^end:#'       => 1,
+        ]);
+    }
+
+    function test_error()
+    {
+        $worker = new Worker([
+            'work'    => function () { throw new Error('error message'); },
+            'driver'  => $this->createDriver(function () { return new Message(null, 123, 'dummy');}),
+            'logger'  => new ArrayLogger($logs),
+            'signals' => [],
+        ]);
+
+        try {
+            $worker->start();
+            $this->fail('no error');
+        }
+        catch (Error $e) {
+            that($e)->getMessage()->is('error message');
+        }
+
+        that($logs)->matchesCountEquals([
             '#^start:#' => 1,
             '#^begin:#' => 1,
             '#^job:#'   => null,
             '#^error:#' => 1,
-            '#^end:#'   => 1,
+            '#^end:#'   => 0,
         ]);
     }
 
