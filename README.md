@@ -181,7 +181,10 @@ Versioning is romantic versioning(no semantic versioning).
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
 
-notice: major 0 is developing version.
+### 1.0.0
+
+- [feature] added logger logs when Throwable
+- [refactor] changed nullable to notnull
 
 ### 0.2.0
 
