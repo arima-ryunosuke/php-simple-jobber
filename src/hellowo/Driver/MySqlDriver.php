@@ -97,7 +97,7 @@ class MySqlDriver extends AbstractDriver
 
         if ($forcibly) {
             $this->connection->query("DROP TRIGGER IF EXISTS {$this->table}_awake_trigger");
-            $this->connection->query("DROP PROCEDURE IF EXISTS {$this->table}_awake");
+            $this->connection->query("DROP FUNCTION IF EXISTS {$this->table}_awake");
             $this->connection->query("DROP TABLE IF EXISTS {$this->table}");
         }
 
