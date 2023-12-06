@@ -69,9 +69,30 @@ class MySqlDriverTest extends AbstractTestCase
     {
         $driver = that(AbstractDriver::create(MYSQL_URL));
         $driver->setup(false);
+        $driver->clear();
+
+        $original = $driver->table->return();
+
+        $driver->send('A');
 
         $driver->table = 't_undefined';
         $driver->select()->wasThrown(" doesn't exist");
+
+        $driver->table = $original;
+        $message       = $driver->select();
+        $driver->send('X');
+        $driver->execute("SELECT * FROM {$original}")->count(2);
+        $driver->table = 't_undefined';
+        $driver->done($message)->wasThrown(" doesn't exist");
+        $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
+
+        $driver->table = $original;
+        $message       = $driver->select();
+        $driver->send('X');
+        $driver->execute("SELECT * FROM {$original}")->count(2);
+        $driver->table = 't_undefined';
+        $driver->retry($message, 10)->wasThrown(" doesn't exist");
+        $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
 
         $driver->close();
     }

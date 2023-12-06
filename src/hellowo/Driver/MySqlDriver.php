@@ -196,14 +196,26 @@ class MySqlDriver extends AbstractDriver
 
     protected function done(Message $message): void
     {
-        $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$message->getId()]);
-        $this->connection->commit();
+        try {
+            $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$message->getId()]);
+            $this->connection->commit();
+        }
+        catch (Throwable $ex) {
+            $this->connection->rollback();
+            throw $ex;
+        }
     }
 
     protected function retry(Message $message, float $time): void
     {
-        $this->execute("UPDATE {$this->table} SET start_at = NOW() + INTERVAL ? SECOND WHERE job_id = ?", [$time, $message->getId()]);
-        $this->connection->commit();
+        try {
+            $this->execute("UPDATE {$this->table} SET start_at = NOW() + INTERVAL ? SECOND WHERE job_id = ?", [$time, $message->getId()]);
+            $this->connection->commit();
+        }
+        catch (Throwable $ex) {
+            $this->connection->rollback();
+            throw $ex;
+        }
     }
 
     protected function error(Exception $e): bool
