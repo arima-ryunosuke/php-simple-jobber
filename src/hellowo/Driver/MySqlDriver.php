@@ -169,6 +169,18 @@ class MySqlDriver extends AbstractDriver
         }
     }
 
+    protected function isStandby(): bool
+    {
+        try {
+            // job_id is unsigned int
+            $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [-1]);
+            return false;
+        }
+        catch (Throwable $ex) {
+            return true;
+        }
+    }
+
     protected function select(): ?Message
     {
         $this->connection->begin_transaction();

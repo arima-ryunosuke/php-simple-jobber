@@ -76,6 +76,7 @@ class FileSystemDriverTest extends AbstractTestCase
             'extension' => 'tmp',
         ]));
         $driver->setup();
+        $driver->isStandby()->isFalse();
         that($directory)->directoryExists();
 
         $driver->close();
@@ -99,6 +100,17 @@ class FileSystemDriverTest extends AbstractTestCase
         $driver->expired($z, strtotime('2025/12/23 12:34:56'))->isFalse();
 
         $driver->close();
+    }
+
+    function test_isStandby()
+    {
+        $driver = that(new FileSystemDriver([
+            'waittime'  => 0.01,
+            'directory' => 'not-found-directory',
+            'extension' => 'tmp',
+        ]));
+
+        $driver->isStandby()->isTrue();
     }
 
     function test_sleep_inotify()

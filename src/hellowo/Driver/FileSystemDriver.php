@@ -99,6 +99,11 @@ class FileSystemDriver extends AbstractDriver
         parent::daemonize();
     }
 
+    protected function isStandby(): bool
+    {
+        return !is_writable($this->directory);
+    }
+
     protected function select(): ?Message
     {
         clearstatcache();

@@ -85,6 +85,13 @@ class Worker extends API
         $this->logger->info("begin: {$this->logString($this->driver)}");
         while ($running) {
             try {
+                // check standby(e.g. filesystem:unmount, mysql:replication, etc)
+                if ($this->driver->isStandby()) {
+                    $this->logger->info("sleep: {$cycle}");
+                    usleep(10 * 1000 * 1000);
+                    continue;
+                }
+
                 // select next job and run
                 $message = $this->driver->select();
                 if ($message !== null) {

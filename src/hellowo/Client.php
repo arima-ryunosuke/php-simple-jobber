@@ -41,6 +41,12 @@ class Client extends API
         $this->driver->setup(...func_get_args());
     }
 
+    public function isStandby(): bool
+    {
+        $this->logger->info('isStandby', get_defined_vars());
+        return $this->driver->isStandby();
+    }
+
     public function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
     {
         $this->logger->info('send', get_defined_vars());

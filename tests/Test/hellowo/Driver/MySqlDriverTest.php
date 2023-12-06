@@ -97,6 +97,21 @@ class MySqlDriverTest extends AbstractTestCase
         $driver->close();
     }
 
+    function test_isStandby()
+    {
+        $driver = that(AbstractDriver::create(MYSQL_URL, [
+            'waittime' => 2,
+            'waitmode' => 'sql',
+        ]));
+        $driver->setup(true);
+
+        $driver->isStandby()->isFalse();
+        $driver->execute('SET SESSION TRANSACTION READ ONLY');
+        $driver->isStandby()->isTrue();
+
+        $driver->close();
+    }
+
     function test_sleep_sql()
     {
         $driver = that(AbstractDriver::create(MYSQL_URL, [

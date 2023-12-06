@@ -94,6 +94,8 @@ class ClientTest extends AbstractTestCase
         $client->setup();
         $client->driver->data->isArray();
 
+        $client->isStandby()->isFalse();
+
         $client->send('data-0')->is(1);
         $client->notify()->is(0);
         $client->send('data-1', 1, 1)->is(2);

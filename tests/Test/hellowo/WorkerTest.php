@@ -21,17 +21,24 @@ use SplFileInfo;
 
 class WorkerTest extends AbstractTestCase
 {
-    function createDriver($select)
+    function createDriver($select, $standby = null)
     {
-        return new class($select) extends AbstractDriver {
-            private Closure $select;
+        return new class($select, $standby) extends AbstractDriver {
+            private Closure  $select;
+            private ?Closure $standby;
 
             private int $count = 1;
 
-            public function __construct($select)
+            public function __construct($select, $standby)
             {
-                $this->select = $select;
+                $this->select  = $select;
+                $this->standby = $standby;
                 parent::__construct('');
+            }
+
+            public function isStandby(): bool
+            {
+                return $this->standby === null ? false : ($this->standby)();
             }
 
             public function select(): ?Message
@@ -149,6 +156,36 @@ class WorkerTest extends AbstractTestCase
             "done"    => ["4", "5"],
             "cycle"   => [0, 1, 2, 3, 4, 5, 6, 7],
         ]);
+    }
+
+
+    function test_standby()
+    {
+        $stdout = $this->emptyDirectory() . '/stdout.txt';
+
+        $worker = new Worker([
+            'work'     => function (Message $message) use ($stdout) {
+                file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
+            },
+            'driver'   => $this->createDriver(function ($count) {
+                // endloop
+                if ($count === 5) {
+                    throw new LogicException('stop');
+                }
+                return new Message(null, $count, $count);
+            }, function () {
+                static $counter = 0;
+                return $counter++ < 1;
+            }),
+            'logger'   => new ArrayLogger($logs),
+            'listener' => new ArrayListener($events),
+            'signals'  => [],
+            'timeout'  => 1,
+        ]);
+
+        $worker->start();
+
+        that($stdout)->fileEquals("1234");
     }
 
     function test_signal()

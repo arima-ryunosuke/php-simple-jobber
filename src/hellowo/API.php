@@ -71,6 +71,13 @@ abstract class API
     protected function daemonize(): void { }
 
     /**
+     * check writable storage/driver
+     *
+     * @return bool
+     */
+    protected function isStandby(): bool { return false; }
+
+    /**
      * notify sent event other process
      *
      * @return int
