@@ -13,8 +13,7 @@ class EchoLogger extends AbstractLogger
     public function log($level, $message, array $context = [])
     {
         $now = (new DateTime())->format('Y-m-d\\TH:i:s.v');
-        $pid = getmypid();
 
-        echo "[$now][$level][$pid] $message\n";
+        echo "[$now][$level] $message\n";
     }
 }

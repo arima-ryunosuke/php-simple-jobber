@@ -4,6 +4,8 @@
  */
 namespace ryunosuke\hellowo\ext;
 
+use ReflectionClass;
+
 // This constant is only for property assignment dynamically(expression) and has no other meaning
 foreach ([
     'SIG_ERR' => -1,
@@ -148,5 +150,19 @@ class pcntl
         self::$alarm_seconds = $seconds;
 
         return $return;
+    }
+
+    public static function strsignal(int $signal): ?string
+    {
+        static $signals = null;
+        $signals ??= array_flip(
+            array_filter(
+                (new ReflectionClass(self::class))->getConstants(),
+                fn($name) => preg_match("/^SIG[A-Z]/i", $name),
+                ARRAY_FILTER_USE_KEY,
+            ),
+        );
+
+        return $signals[$signal] ?? null;
     }
 }

@@ -62,32 +62,32 @@ class Worker extends API
     public function start(): void
     {
         $running = true;
+        $mypid   = getmypid();
 
         // setup
-        $mypid = getmypid();
-        $this->logger->info("start: {$this->logString($mypid)}");
+        $this->logger->info("[$mypid]start: {$this->logString($this->driver)}");
         $this->driver->setup();
         $this->driver->daemonize();
 
         // signal handling
         pcntl::async_signals(true);
-        pcntl::signal(pcntl::SIGUSR1, fn() => $this->logger->debug('signal: USR1'));
+        pcntl::signal(pcntl::SIGUSR1, fn() => $this->logger->debug("[$mypid]signal: {$this->logString(pcntl::SIGUSR1)}({$this->logString(pcntl::strsignal(pcntl::SIGUSR1))})"));
         pcntl::signal(pcntl::SIGALRM, fn() => TimeoutException::throw());
         foreach ($this->signals as $signal => $handler) {
-            pcntl::signal($signal, $handler ?? function ($signo) use (&$running) {
+            pcntl::signal($signal, $handler ?? function ($signo) use (&$running, $mypid) {
                 $running = false;
-                $this->logger->notice("stop: {$this->logString($signo)}");
+                $this->logger->notice("[$mypid]stop: {$this->logString($signo)}({$this->logString(pcntl::strsignal($signo))})");
             });
         }
 
         // main loop
         $cycle = 0;
-        $this->logger->info("begin: {$this->logString($this->driver)}");
+        $this->logger->info("[$mypid]begin: {$this->logString($cycle)}");
         while ($running) {
             try {
                 // check standby(e.g. filesystem:unmount, mysql:replication, etc)
                 if ($this->driver->isStandby()) {
-                    $this->logger->info("sleep: {$cycle}");
+                    $this->logger->info("[$mypid]sleep: {$this->logString($cycle)}");
                     usleep(10 * 1000 * 1000);
                     continue;
                 }
@@ -95,7 +95,7 @@ class Worker extends API
                 // select next job and run
                 $message = $this->driver->select();
                 if ($message !== null) {
-                    $this->logger->info("job: {$this->logString($message->getId())}");
+                    $this->logger->info("[$mypid]job: {$this->logString($message->getId())}");
 
                     try {
                         $microtime = microtime(true);
@@ -106,49 +106,49 @@ class Worker extends API
                         finally {
                             pcntl::alarm(0);
                         }
-                        $this->logger->info("done: {$this->logString($return)}");
+                        $this->logger->info("[$mypid]done: {$this->logString($return)}");
                         $this->driver->done($message);
                         $this->listener->onDone($message, $return);
                     }
                     catch (RetryableException $e) {
-                        $this->logger->notice("retry: {$this->logString("after {$e->getSecond()} seconds")}");
+                        $this->logger->notice("[$mypid]retry: {$this->logString("after {$e->getSecond()} seconds")}");
                         $this->driver->retry($message, $e->getSecond());
                         $this->listener->onRetry($message, $e);
                     }
                     catch (TimeoutException $e) {
-                        $this->logger->warning("timeout: {$this->logString("elapsed {$e->getElapsed($microtime)} seconds")}");
+                        $this->logger->warning("[$mypid]timeout: {$this->logString("elapsed {$e->getElapsed($microtime)} seconds")}");
                         $this->driver->done($message);
                         $this->listener->onTimeout($message, $e);
                     }
                     catch (Exception $e) {
-                        $this->logger->error("fail: {$this->logString($e)}");
+                        $this->logger->error("[$mypid]fail: {$this->logString($e)}");
                         $this->driver->done($message);
                         $this->listener->onFail($message, $e);
                     }
                 }
 
-                $this->logger->debug("cycle: {$cycle}");
+                $this->logger->debug("[$mypid]cycle: {$this->logString($cycle)}");
                 $this->listener->onCycle($cycle);
                 pcntl::signal_dispatch();
                 gc_collect_cycles();
                 $cycle++;
             }
             catch (Exception $e) {
-                $this->logger->error("exception: {$this->logString($e)}");
+                $this->logger->error("[$mypid]exception: {$this->logString($e)}");
                 if ($this->driver->error($e)) {
                     break;
                 }
                 usleep(0.1 * 1000 * 1000);
             }
             catch (Throwable $t) {
-                $this->logger->critical("error: {$this->logString($t)}");
+                $this->logger->critical("[$mypid]error: {$this->logString($t)}");
                 throw $t;
             }
         }
 
         $this->driver->close();
 
-        $this->logger->info("end: {$this->logString($mypid)}");
+        $this->logger->info("[$mypid]end: {$this->logString($cycle)}");
     }
 
     private function logString($log_data): string

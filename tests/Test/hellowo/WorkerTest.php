@@ -139,14 +139,14 @@ class WorkerTest extends AbstractTestCase
         that($stdout)->fileEquals("45");
 
         that($logs)->matchesCountEquals([
-            '#^start:#'   => 1,
-            '#^begin:#'   => 1,
-            '#^job:#'     => null,
-            '#^done:#'    => null,
-            '#^fail:#'    => 1,
-            '#^timeout:#' => 1,
-            '#^retry:#'   => 3,
-            '#^end:#'     => 1,
+            '#^\\[\\d+\\]start:#'   => 1,
+            '#^\\[\\d+\\]begin:#'   => 1,
+            '#^\\[\\d+\\]job:#'     => null,
+            '#^\\[\\d+\\]done:#'    => null,
+            '#^\\[\\d+\\]fail:#'    => 1,
+            '#^\\[\\d+\\]timeout:#' => 1,
+            '#^\\[\\d+\\]retry:#'   => 3,
+            '#^\\[\\d+\\]end:#'     => 1,
         ]);
 
         that($events)->is([
@@ -246,11 +246,11 @@ class WorkerTest extends AbstractTestCase
         $worker->start();
 
         that($logs)->matchesCountEquals([
-            '#^start:#'     => 1,
-            '#^begin:#'     => 1,
-            '#^job:#'       => null,
-            '#^exception:#' => 1,
-            '#^end:#'       => 1,
+            '#^\\[\\d+\\]start:#'     => 1,
+            '#^\\[\\d+\\]begin:#'     => 1,
+            '#^\\[\\d+\\]job:#'       => null,
+            '#^\\[\\d+\\]exception:#' => 1,
+            '#^\\[\\d+\\]end:#'       => 1,
         ]);
     }
 
@@ -272,11 +272,11 @@ class WorkerTest extends AbstractTestCase
         }
 
         that($logs)->matchesCountEquals([
-            '#^start:#' => 1,
-            '#^begin:#' => 1,
-            '#^job:#'   => null,
-            '#^error:#' => 1,
-            '#^end:#'   => 0,
+            '#^\\[\\d+\\]start:#' => 1,
+            '#^\\[\\d+\\]begin:#' => 1,
+            '#^\\[\\d+\\]job:#'   => null,
+            '#^\\[\\d+\\]error:#' => 1,
+            '#^\\[\\d+\\]end:#'   => 0,
         ]);
     }
 
