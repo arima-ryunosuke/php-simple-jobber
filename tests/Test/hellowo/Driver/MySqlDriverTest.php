@@ -4,6 +4,7 @@ namespace ryunosuke\Test\hellowo\Driver;
 
 use Exception;
 use mysqli;
+use mysqli_sql_exception;
 use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\hellowo\Driver\MySqlDriver;
 use ryunosuke\Test\AbstractTestCase;
@@ -15,6 +16,11 @@ class MySqlDriverTest extends AbstractTestCase
         if (!defined('MYSQL_URL') || !MySqlDriver::isEnabled()) {
             $this->markTestSkipped();
         }
+    }
+
+    function test___construct()
+    {
+        @that(MySqlDriver::class)->new(['host' => '0.0.0.0', 'port' => 9999])->wasThrown(/* difference php7/8 */);
     }
 
     function test_all()
@@ -109,7 +115,19 @@ class MySqlDriverTest extends AbstractTestCase
         $driver->execute('SET SESSION TRANSACTION READ ONLY');
         $driver->isStandby()->isTrue();
 
-        $driver->close();
+        mysqli_report(MYSQLI_REPORT_ERROR);
+        set_error_handler(function () { throw new mysqli_sql_exception('', 2006); });
+        try {
+            $driver->use('isStandby')();
+            $this->fail('not thrown mysqli_sql_exception');
+        }
+        catch (mysqli_sql_exception $e) {
+            that($e)->getCode()->is(2006);
+        }
+        finally {
+            restore_error_handler();
+            mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        }
     }
 
     function test_sleep_sql()

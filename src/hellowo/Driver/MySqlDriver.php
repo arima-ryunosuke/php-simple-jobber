@@ -6,6 +6,7 @@ use Exception;
 use mysqli;
 use mysqli_result;
 use mysqli_sql_exception;
+use RuntimeException;
 use ryunosuke\hellowo\Message;
 use Throwable;
 
@@ -75,6 +76,9 @@ class MySqlDriver extends AbstractDriver
             $transport['socket']   = null;                   // for compatible php7/8
             $this->transport       = $transport;
             $transport             = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $transport));
+            if ($transport->connect_errno) {
+                throw new mysqli_sql_exception($transport->connect_error, $transport->connect_errno);
+            }
         }
         $this->connection = $transport;
         $this->table      = $options['table'];
@@ -176,7 +180,10 @@ class MySqlDriver extends AbstractDriver
             $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [-1]);
             return false;
         }
-        catch (Throwable $ex) {
+        catch (mysqli_sql_exception $e) {
+            if ($e->getCode() === 2006) {
+                throw $e;
+            }
             return true;
         }
     }
