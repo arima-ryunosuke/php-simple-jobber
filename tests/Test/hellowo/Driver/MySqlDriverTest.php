@@ -41,30 +41,35 @@ class MySqlDriverTest extends AbstractTestCase
         $driver->send('A', 2);
         $driver->send('X', null, 10);
 
-        $message = $driver->select();
-        $message->getOriginal()->isArray();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getId()->isNumeric();
         $message->getContents()->is('A');
-        $driver->done($message);
+        $generator->send(null);
 
-        $message = $driver->select();
-        $message->getOriginal()->isArray();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getId()->isNumeric();
         $message->getContents()->is('B');
-        $driver->done($message);
+        $generator->send(null);
 
-        $driver->select()->isNull();
+        $generator = $driver->select();
+        $message   = $generator->current();
+        $message->isNull();
 
         $driver->send('C', 1);
-        $message = $driver->select();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getContents()->is('C');
-        $driver->retry($message, 2);
-        $message = $driver->select();
+        $generator->send(2);
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->isNull();
         sleep(2);
-        $message = $driver->select();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getContents()->is('C');
-        $driver->done($message);
+        $generator->send(null);
 
         $driver->error(new Exception())->isFalse();
 
@@ -82,22 +87,34 @@ class MySqlDriverTest extends AbstractTestCase
         $driver->send('A');
 
         $driver->table = 't_undefined';
-        $driver->select()->wasThrown(" doesn't exist");
+        $generator     = $driver->select();
+        $generator->current()->wasThrown(" doesn't exist");
 
         $driver->table = $original;
-        $message       = $driver->select();
+        $generator     = $driver->select();
+        $generator->current();
         $driver->send('X');
         $driver->execute("SELECT * FROM {$original}")->count(2);
         $driver->table = 't_undefined';
-        $driver->done($message)->wasThrown(" doesn't exist");
+        $generator->send(null)->wasThrown(" doesn't exist");
         $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
 
         $driver->table = $original;
-        $message       = $driver->select();
+        $generator     = $driver->select();
+        $generator->current();
         $driver->send('X');
         $driver->execute("SELECT * FROM {$original}")->count(2);
         $driver->table = 't_undefined';
-        $driver->retry($message, 10)->wasThrown(" doesn't exist");
+        $generator->send(10)->wasThrown(" doesn't exist");
+        $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
+
+        $driver->table = $original;
+        $generator     = $driver->select();
+        $generator->current();
+        $driver->send('X');
+        $driver->execute("SELECT * FROM {$original}")->count(2);
+        $driver->table = 't_undefined';
+        $generator->throw(new Exception('throw'))->wasThrown("throw");
         $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
 
         $driver->close();

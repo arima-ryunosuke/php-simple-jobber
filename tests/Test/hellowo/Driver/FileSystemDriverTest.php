@@ -33,31 +33,33 @@ class FileSystemDriverTest extends AbstractTestCase
         $driver->send('A', 2);
         $driver->send('X', null, 10);
 
-        $message = $driver->select();
-        $message->getOriginal()->isArray();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getId()->stringEndsWith('.testjob');
         $message->getContents()->is('A');
-        $driver->done($message);
-        $message->getOriginal()['filename']->fileNotExists();
+        $generator->send(null);
 
-        $message = $driver->select();
-        $message->getOriginal()->isArray();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getId()->stringEndsWith('.testjob');
         $message->getContents()->is('B');
-        $driver->done($message);
-        $message->getOriginal()['filename']->fileNotExists();
+        $generator->send(null);
 
-        $driver->select()->isNull();
+        $generator = $driver->select();
+        $message   = $generator->current();
+        $message->isNull();
 
         $driver->send('C');
-        $message = $driver->select();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getContents()->is('C');
-        $driver->retry($message, 2);
-        $message->getOriginal()['filename']->fileExists();
-        $message = $driver->select();
+        $generator->send(2);
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->isNull();
         sleep(2);
-        $message = $driver->select();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getContents()->is('C');
 
         $driver->error(new Exception())->isFalse();

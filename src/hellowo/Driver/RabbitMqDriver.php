@@ -3,6 +3,7 @@
 namespace ryunosuke\hellowo\Driver;
 
 use Exception;
+use Generator;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AbstractConnection;
 use PhpAmqpLib\Connection\AMQPConnectionConfig;
@@ -39,7 +40,9 @@ class RabbitMqDriver extends AbstractDriver
     private string $queue;
     private array  $queueDeclaration;
     private array  $consumeDeclaration;
-    private array  $buffer = [];
+
+    /** @var AMQPMessage[] */
+    private array $buffer = [];
 
     public function __construct(array $options)
     {
@@ -149,14 +152,14 @@ class RabbitMqDriver extends AbstractDriver
         $this->channel->basic_consume(...self::normalizeArguments([$this->channel, 'basic_consume'], array_replace($this->consumeDeclaration, [
             'queue'    => $this->queue,
             'callback' => function (AMQPMessage $msg) {
-                $this->buffer[$msg->getDeliveryTag()] = new Message($msg, $msg->getDeliveryTag(), $msg->getBody());
+                $this->buffer[$msg->getDeliveryTag()] = $msg;
             },
         ])));
 
         parent::daemonize();
     }
 
-    protected function select(): ?Message
+    protected function select(): Generator
     {
         if (!$this->buffer) {
             try {
@@ -167,29 +170,22 @@ class RabbitMqDriver extends AbstractDriver
             }
         }
 
-        foreach ($this->buffer as $message) {
-            return $message;
+        foreach ($this->buffer as $id => $msg) {
+            $retry = yield new Message($id, $msg->getBody());
+            if ($retry === null) {
+                unset($this->buffer[$id]);
+                $this->channel->basic_ack($id);
+            }
+            else {
+                /** @var AMQPTable $headers */
+                $headers = $msg->get_properties()['application_headers'];
+                $headers->set('x-delay', $retry * 1000, AMQPTable::T_INT_LONG);
+
+                unset($this->buffer[$id]);
+                $this->channel->basic_reject($id, true);
+            }
+            return;
         }
-
-        return null;
-    }
-
-    protected function done(Message $message): void
-    {
-        unset($this->buffer[$message->getId()]);
-        $this->channel->basic_ack($message->getId());
-    }
-
-    protected function retry(Message $message, float $time): void
-    {
-        /** @var AMQPMessage $original */
-        $original = $message->getOriginal();
-        /** @var AMQPTable $headers */
-        $headers = $original->get_properties()['application_headers'];
-        $headers->set('x-delay', $time * 1000, AMQPTable::T_INT_LONG);
-
-        unset($this->buffer[$message->getId()]);
-        $this->channel->basic_reject($message->getId(), true);
     }
 
     protected function error(Exception $e): bool
@@ -240,9 +236,10 @@ class RabbitMqDriver extends AbstractDriver
         while (true) {
             try {
                 $this->channel->wait(null, false, 0.1);
-                foreach ($this->buffer as $message) {
+                foreach ($this->buffer as $id => $msg) {
                     $count++;
-                    $this->done($message);
+                    unset($this->buffer[$id]);
+                    $this->channel->basic_ack($id);
                 }
             }
             catch (AMQPTimeoutException $ex) {

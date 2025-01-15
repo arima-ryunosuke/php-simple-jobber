@@ -6,6 +6,7 @@ use Exception;
 use GearmanClient;
 use GearmanJob;
 use GearmanWorker;
+use Generator;
 use ryunosuke\hellowo\ext\gearman;
 use ryunosuke\hellowo\Message;
 
@@ -34,6 +35,7 @@ class GearmanDriver extends AbstractDriver
     private GearmanClient $client;
     private GearmanWorker $worker;
 
+    /** @var GearmanJob[] */
     private array $buffer = [];
 
     public function __construct(array $options)
@@ -69,35 +71,30 @@ class GearmanDriver extends AbstractDriver
     {
         $this->worker->addServer($this->host, $this->port);
         $this->worker->addFunction($this->function, function (GearmanJob $job) {
-            $this->buffer[$job->unique()] = new Message($job, $job->unique(), $job->workload());
+            $this->buffer[$job->unique()] = $job;
         });
 
         parent::daemonize();
     }
 
-    protected function select(): ?Message
+    protected function select(): Generator
     {
         if (!$this->buffer) {
             $this->worker->work();
         }
 
-        foreach ($this->buffer as $job) {
-            return $job;
+        foreach ($this->buffer as $id => $job) {
+            $retry = yield new Message($job->unique(), $job->workload());
+            if ($retry === null) {
+                unset($this->buffer[$id]);
+            }
+            else {
+                usleep($retry * 1000 * 1000);
+                unset($this->buffer[$id]);
+                $this->client->doBackground($this->function, $job->workload());
+            }
+            return;
         }
-
-        return null;
-    }
-
-    protected function done(Message $message): void
-    {
-        unset($this->buffer[$message->getId()]);
-    }
-
-    protected function retry(Message $message, float $time): void
-    {
-        usleep($time * 1000 * 1000);
-        unset($this->buffer[$message->getId()]);
-        $this->client->doBackground($this->function, $message->getContents());
     }
 
     protected function error(Exception $e): bool
@@ -108,7 +105,7 @@ class GearmanDriver extends AbstractDriver
     protected function close(): void
     {
         foreach ($this->buffer as $job) {
-            $this->client->doBackground($this->function, $job->getContents());
+            $this->client->doBackground($this->function, $job->workload());
         }
         unset($this->client);
 

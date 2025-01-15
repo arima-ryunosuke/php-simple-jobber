@@ -3,6 +3,7 @@
 namespace ryunosuke\hellowo;
 
 use Exception;
+use Generator;
 use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\hellowo\ext\posix;
 use Throwable;
@@ -87,26 +88,9 @@ abstract class API
     /**
      * select next message
      *
-     * @return ?Message
+     * @return Generator<Message>
      */
-    protected function select(): ?Message { }
-
-    /**
-     * called when complete
-     *
-     * @param Message $message message of select
-     * @return void
-     */
-    protected function done(Message $message): void { }
-
-    /**
-     * called when retry
-     *
-     * @param Message $message message of select
-     * @param float $time next retry seconds
-     * @return void
-     */
-    protected function retry(Message $message, float $time): void { }
+    protected function select(): Generator { }
 
     /**
      * called when error

@@ -4,14 +4,11 @@ namespace ryunosuke\hellowo;
 
 class Message
 {
-    private $original;
-
     private string $id;
     private string $contents;
 
-    public function __construct($original, string $id, string $contents)
+    public function __construct(string $id, string $contents)
     {
-        $this->original = $original;
         $this->id       = $id;
         $this->contents = $contents;
     }
@@ -19,11 +16,6 @@ class Message
     public function __toString(): string
     {
         return $this->getContents();
-    }
-
-    public function getOriginal()
-    {
-        return $this->original;
     }
 
     public function getId(): string

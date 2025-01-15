@@ -7,6 +7,7 @@ use ArrayLogger;
 use Closure;
 use Error;
 use Exception;
+use Generator;
 use LogicException;
 use Psr\Log\NullLogger;
 use RuntimeException;
@@ -18,6 +19,7 @@ use ryunosuke\hellowo\Message;
 use ryunosuke\hellowo\Worker;
 use ryunosuke\Test\AbstractTestCase;
 use SplFileInfo;
+use Throwable;
 
 class WorkerTest extends AbstractTestCase
 {
@@ -41,14 +43,21 @@ class WorkerTest extends AbstractTestCase
                 return $this->standby === null ? false : ($this->standby)();
             }
 
-            public function select(): ?Message
+            public function select(): Generator
             {
-                return ($this->select)($this->count++);
-            }
-
-            public function retry(Message $message, float $time): void
-            {
-                $this->count--;
+                try {
+                    $message = ($this->select)($this->count++);
+                    $retry   = yield $message;
+                    if ($retry === null) {
+                        // done
+                    }
+                    else {
+                        $this->count--;
+                    }
+                }
+                catch (Throwable $t) {
+                    throw $t;
+                }
             }
 
             public function error(Exception $e): bool
@@ -125,7 +134,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 6) {
                     throw new LogicException('stop');
                 }
-                return new Message(null, $count, $count);
+                return new Message($count, $count);
             }),
             'logger'   => new ArrayLogger($logs),
             'listener' => new ArrayListener($events),
@@ -172,7 +181,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 5) {
                     throw new LogicException('stop');
                 }
-                return new Message(null, $count, $count);
+                return new Message($count, $count);
             }, function () {
                 static $counter = 0;
                 return $counter++ < 1;
@@ -203,7 +212,7 @@ class WorkerTest extends AbstractTestCase
                     posix::kill(getmypid(), pcntl::SIGUSR2);
                 }
                 if ($count === 2) {
-                    return new Message(null, $count, $count);
+                    return new Message($count, $count);
                 }
                 return null;
             }),
@@ -237,7 +246,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 3) {
                     posix::kill(getmypid(), pcntl::SIGTERM);
                 }
-                return new Message(null, $count, $count);
+                return new Message($count, $count);
             }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
@@ -258,7 +267,7 @@ class WorkerTest extends AbstractTestCase
     {
         $worker = new Worker([
             'work'    => function () { throw new Error('error message'); },
-            'driver'  => $this->createDriver(function () { return new Message(null, 123, 'dummy');}),
+            'driver'  => $this->createDriver(function () { return new Message(123, 'dummy'); }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
         ]);

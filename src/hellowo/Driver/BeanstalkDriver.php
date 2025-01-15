@@ -3,6 +3,7 @@
 namespace ryunosuke\hellowo\Driver;
 
 use Exception;
+use Generator;
 use Pheanstalk\Contract\PheanstalkInterface;
 use Pheanstalk\Contract\ResponseInterface;
 use Pheanstalk\Pheanstalk;
@@ -53,23 +54,18 @@ class BeanstalkDriver extends AbstractDriver
         parent::__construct("beanstalk {$options['transport']['host']}:{$options['transport']['port']}/{$options['tube']}");
     }
 
-    protected function select(): ?Message
+    protected function select(): Generator
     {
         $job = $this->connection->reserveWithTimeout($this->waittime);
         if ($job) {
-            return new Message($job, $job->getId(), $job->getData());
+            $retry = yield new Message($job->getId(), $job->getData());
+            if ($retry === null) {
+                $this->connection->delete($job);
+            }
+            else {
+                $this->connection->release($job, PheanstalkInterface::DEFAULT_PRIORITY, $retry);
+            }
         }
-        return null;
-    }
-
-    protected function done(Message $message): void
-    {
-        $this->connection->delete($message->getOriginal());
-    }
-
-    protected function retry(Message $message, float $time): void
-    {
-        $this->connection->release($message->getOriginal(), PheanstalkInterface::DEFAULT_PRIORITY, $time);
     }
 
     protected function error(Exception $e): bool

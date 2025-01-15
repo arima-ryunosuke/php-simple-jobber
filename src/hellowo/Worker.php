@@ -93,38 +93,47 @@ class Worker extends API
                 }
 
                 // select next job and run
-                $message = $this->driver->select();
-                if ($message !== null) {
-                    $this->logger->info("[$mypid]job: {$this->logString($message->getId())}");
+                $generator = $this->driver->select();
+                try {
+                    $message = $generator->current();
+                    if ($message !== null) {
+                        $this->logger->info("[$mypid]job: {$this->logString($message->getId())}");
 
-                    try {
-                        $microtime = microtime(true);
-                        pcntl::alarm($this->timeout);
                         try {
-                            $return = ($this->work)($message);
+                            $microtime = microtime(true);
+                            pcntl::alarm($this->timeout);
+                            try {
+                                $return = ($this->work)($message);
+                            }
+                            finally {
+                                pcntl::alarm(0);
+                            }
+                            $this->logger->info("[$mypid]done: {$this->logString($return)}");
+                            $generator->send(null);
+                            $this->listener->onDone($message, $return);
                         }
-                        finally {
-                            pcntl::alarm(0);
+                        catch (RetryableException $e) {
+                            $this->logger->notice("[$mypid]retry: {$this->logString("after {$e->getSecond()} seconds")}");
+                            $generator->send($e->getSecond());
+                            $this->listener->onRetry($message, $e);
                         }
-                        $this->logger->info("[$mypid]done: {$this->logString($return)}");
-                        $this->driver->done($message);
-                        $this->listener->onDone($message, $return);
+                        catch (TimeoutException $e) {
+                            $this->logger->warning("[$mypid]timeout: {$this->logString("elapsed {$e->getElapsed($microtime)} seconds")}");
+                            $generator->send(null);
+                            $this->listener->onTimeout($message, $e);
+                        }
+                        catch (Exception $e) {
+                            $this->logger->error("[$mypid]fail: {$this->logString($e)}");
+                            $generator->send(null);
+                            $this->listener->onFail($message, $e);
+                        }
                     }
-                    catch (RetryableException $e) {
-                        $this->logger->notice("[$mypid]retry: {$this->logString("after {$e->getSecond()} seconds")}");
-                        $this->driver->retry($message, $e->getSecond());
-                        $this->listener->onRetry($message, $e);
-                    }
-                    catch (TimeoutException $e) {
-                        $this->logger->warning("[$mypid]timeout: {$this->logString("elapsed {$e->getElapsed($microtime)} seconds")}");
-                        $this->driver->done($message);
-                        $this->listener->onTimeout($message, $e);
-                    }
-                    catch (Exception $e) {
-                        $this->logger->error("[$mypid]fail: {$this->logString($e)}");
-                        $this->driver->done($message);
-                        $this->listener->onFail($message, $e);
-                    }
+                }
+                catch (Throwable $t) {
+                    throw $generator->throw($t) ?? $t;
+                }
+                finally {
+                    unset($generator);
                 }
 
                 $this->logger->debug("[$mypid]cycle: {$this->logString($cycle)}");

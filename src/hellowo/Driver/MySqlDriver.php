@@ -3,6 +3,7 @@
 namespace ryunosuke\hellowo\Driver;
 
 use Exception;
+use Generator;
 use mysqli;
 use mysqli_result;
 use mysqli_sql_exception;
@@ -188,20 +189,28 @@ class MySqlDriver extends AbstractDriver
         }
     }
 
-    protected function select(): ?Message
+    protected function select(): Generator
     {
         $this->connection->begin_transaction();
         try {
             // mysql's lock is index lock. therefore must be locked by primary key
-            $jobs = $this->execute(
+            $job = $this->execute(
                 "SELECT * FROM {$this->table} WHERE job_id = (SELECT job_id FROM {$this->table} WHERE start_at <= NOW() ORDER BY priority DESC LIMIT 1) FOR UPDATE SKIP LOCKED",
-            );
+            )[0] ?? null;
 
-            if ($jobs) {
-                $job = $jobs[0];
-                return new Message($job, $job['job_id'], $job['message']);
+            if ($job) {
+                $retry = yield new Message($job['job_id'], $job['message']);
+                if ($retry === null) {
+                    $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job['job_id']]);
+                }
+                else {
+                    $this->execute("UPDATE {$this->table} SET start_at = NOW() + INTERVAL ? SECOND WHERE job_id = ?", [$retry, $job['job_id']]);
+                }
             }
             $this->connection->commit();
+            if ($job) {
+                return;
+            }
         }
         catch (Throwable $ex) {
             $this->connection->rollback();
@@ -210,31 +219,6 @@ class MySqlDriver extends AbstractDriver
 
         $this->sleep();
         $this->recover();
-        return null;
-    }
-
-    protected function done(Message $message): void
-    {
-        try {
-            $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$message->getId()]);
-            $this->connection->commit();
-        }
-        catch (Throwable $ex) {
-            $this->connection->rollback();
-            throw $ex;
-        }
-    }
-
-    protected function retry(Message $message, float $time): void
-    {
-        try {
-            $this->execute("UPDATE {$this->table} SET start_at = NOW() + INTERVAL ? SECOND WHERE job_id = ?", [$time, $message->getId()]);
-            $this->connection->commit();
-        }
-        catch (Throwable $ex) {
-            $this->connection->rollback();
-            throw $ex;
-        }
     }
 
     protected function error(Exception $e): bool

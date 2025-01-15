@@ -3,6 +3,7 @@
 namespace ryunosuke\hellowo\Driver;
 
 use Exception;
+use Generator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ryunosuke\hellowo\ext\inotify;
@@ -104,7 +105,7 @@ class FileSystemDriver extends AbstractDriver
         return !is_writable($this->directory);
     }
 
-    protected function select(): ?Message
+    protected function select(): Generator
     {
         clearstatcache();
 
@@ -116,30 +117,21 @@ class FileSystemDriver extends AbstractDriver
 
                 // renames fail at race condition
                 if (@rename($filepath, $workfile)) {
-                    return new Message([
-                        'filename' => $filepath,
-                        'workfile' => $workfile,
-                    ], basename($filepath), file_get_contents($workfile));
+                    $retry = yield new Message(basename($filepath), file_get_contents($workfile));
+                    if ($retry === null) {
+                        unlink($workfile);
+                    }
+                    else {
+                        rename($workfile, $filepath);
+                        touch($filepath, time() + $retry);
+                    }
+                    return;
                 }
             }
         }
 
         $this->sleep();
         $this->recover();
-        return null;
-    }
-
-    protected function done(Message $message): void
-    {
-        $original = $message->getOriginal();
-        unlink($original['workfile']);
-    }
-
-    protected function retry(Message $message, float $time): void
-    {
-        $original = $message->getOriginal();
-        rename($original['workfile'], $original['filename']);
-        touch($original['filename'], time() + $time);
     }
 
     protected function error(Exception $e): bool

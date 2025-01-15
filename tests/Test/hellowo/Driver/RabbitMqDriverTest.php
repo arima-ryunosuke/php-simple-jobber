@@ -32,27 +32,31 @@ class RabbitMqDriverTest extends AbstractTestCase
         $driver->send('A', 2); // for some reason, priorities aren't working
         $driver->send('B', 1);
 
-        $message = $driver->select();
-        $message->getOriginal()->isObject();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getId()->isNumeric();
         $message->getContents()->is('A');
-        $driver->done($message);
+        $generator->send(null);
 
-        $message = $driver->select();
-        $message->getOriginal()->isObject();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getId()->isNumeric();
         $message->getContents()->is('B');
-        $driver->done($message);
+        $generator->send(null);
 
-        $driver->select()->isNull();
+        $generator = $driver->select();
+        $message   = $generator->current();
+        $message->isNull();
 
         $driver->send('C', 1);
-        $message = $driver->select();
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getContents()->is('C');
-        $driver->retry($message, 2);
-        $message = $driver->select();
+        $generator->send(2);
+        $generator = $driver->select();
+        $message   = $generator->current();
         $message->getContents()->is('C');
-        $driver->done($message);
+        $generator->send(null);
 
         $driver->error(new Exception())->isFalse();
 
