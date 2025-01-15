@@ -181,6 +181,12 @@ Versioning is romantic versioning(no semantic versioning).
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
 
+### 1.1.0
+
+- [*change] select+done+retry -> generator
+- [change] log format
+- [fixbug] no keeps connecting on server gone away
+
 ### 1.0.1
 
 - [feature] check writable mode
