@@ -2,6 +2,7 @@
 
 namespace ryunosuke\hellowo;
 
+use Closure;
 use Exception;
 use Generator;
 use ryunosuke\hellowo\ext\pcntl;
@@ -149,5 +150,37 @@ abstract class API
 
             public function onCycle(int $cycle): void { }
         };
+    }
+
+    /**
+     * new Closure for restart
+     *
+     * @return Closure
+     */
+    protected function restartClosure($restartMode): Closure
+    {
+        // as it is
+        if (is_callable($restartMode)) {
+            return Closure::fromCallable($restartMode);
+        }
+        // lifetime
+        if (is_int($restartMode) || is_float($restartMode)) {
+            return fn($start, $cycle) => (microtime(true) - $start) > $restartMode ? 1 : null;
+        }
+        // included file was modified
+        if ($restartMode == 'change') {
+            return function ($start, $cycle) {
+                foreach (get_included_files() as $filename) {
+                    $mtime = file_exists($filename) ? filemtime($filename) : PHP_INT_MAX;
+                    if ($mtime > $start) {
+                        return 1;
+                    }
+                }
+                return null;
+            };
+        }
+
+        // default
+        return fn() => null;
     }
 }

@@ -21,6 +21,7 @@ class Worker extends API
     private Listener        $listener;
     private array           $signals;
     private int             $timeout;
+    private Closure         $restart;
 
     /**
      * constructor
@@ -32,6 +33,7 @@ class Worker extends API
      *   - signals(?callable[]): handling signals. if value is null then default handler
      *   - listener(Listener): event emitter. events are 'done', 'retry', 'timeout', 'fail'
      *   - timeout(int): work timeout second
+     *   - restart(mixed): restart condition. "change" is deprecated because it is for debugging
      */
     public function __construct(array $options = [])
     {
@@ -54,6 +56,7 @@ class Worker extends API
         $this->listener = $options['listener'] ?? $this->NullListener();
         $this->signals  = ($options['signals'] ?? []) + self::HANDLING_SIGNALS;
         $this->timeout  = $options['timeout'] ?? 0;
+        $this->restart  = $this->restartClosure($options['restart'] ?? null);
     }
 
     /**
@@ -81,9 +84,18 @@ class Worker extends API
         }
 
         // main loop
+        $start = microtime(true);
         $cycle = 0;
         $this->logger->info("[$mypid]begin: {$this->logString($cycle)}");
         while ($running) {
+            $exitcode = ($this->restart)($start, $cycle);
+            if ($exitcode !== null) {
+                // @codeCoverageIgnoreStart
+                $this->logger->notice("[$mypid]restart: {$this->logString($exitcode)}");
+                exit($exitcode);
+                // @codeCoverageIgnoreEnd
+            }
+
             try {
                 // check standby(e.g. filesystem:unmount, mysql:replication, etc)
                 if ($this->driver->isStandby()) {

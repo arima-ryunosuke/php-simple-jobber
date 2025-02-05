@@ -300,4 +300,32 @@ class WorkerTest extends AbstractTestCase
         $worker->logString([1, new SplFileInfo('file'), new RuntimeException('msg', 3)])
             ->stringStartsWith('[1,"file","caught RuntimeException(3, msg) in');
     }
+
+    function test_restart()
+    {
+        $worker = that(new Worker([
+            'work'    => function () { },
+            'driver'  => $this->createDriver(function () { return null; }),
+            'restart' => fn() => true,
+        ]));
+
+        // closure
+        $worker->restartClosure(fn() => 123)(0, 0)->is(123);
+        $worker->restartClosure(fn() => null)(0, 0)->is(null);
+
+        // int
+        $worker->restartClosure(11)(time() - 10, 0)->is(null);
+        $worker->restartClosure(11)(time() - 12, 0)->is(1);
+
+        // change
+        $worker->restartClosure('change')(time(), 0)->is(null);
+        touch(__FILE__);
+        $worker->restartClosure('change')(time() - 2, 0)->is(1);
+
+        // null or default
+        $worker->restartClosure(null)(0, 0)->is(null);
+
+        // phpunit itself is exited.
+        //$worker->start();
+    }
 }
