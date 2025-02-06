@@ -181,6 +181,10 @@ Versioning is romantic versioning(no semantic versioning).
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
 
+### 1.1.1
+
+- [feature] added restart trigger
+
 ### 1.1.0
 
 - [*change] select+done+retry -> generator
