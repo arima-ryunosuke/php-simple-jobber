@@ -7,6 +7,7 @@ use Exception;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use ryunosuke\hellowo\Driver\AbstractDriver;
+use ryunosuke\hellowo\Exception\ExitException;
 use ryunosuke\hellowo\Exception\RetryableException;
 use ryunosuke\hellowo\Exception\TimeoutException;
 use ryunosuke\hellowo\ext\pcntl;
@@ -69,8 +70,10 @@ class Worker extends API
 
         // setup
         $this->logger->info("[$mypid]start: {$this->logString($this->driver)}");
-        $this->driver->setup();
-        $this->driver->daemonize();
+        if (!$this->driver->isStandby()) {
+            $this->driver->setup();
+            $this->driver->daemonize();
+        }
 
         // signal handling
         pcntl::async_signals(true);
@@ -84,24 +87,28 @@ class Worker extends API
         }
 
         // main loop
-        $start = microtime(true);
-        $cycle = 0;
+        $start   = microtime(true);
+        $cycle   = 0;
+        $stoodby = false;
         $this->logger->info("[$mypid]begin: {$this->logString($cycle)}");
         while ($running) {
-            $exitcode = ($this->restart)($start, $cycle);
-            if ($exitcode !== null) {
-                // @codeCoverageIgnoreStart
-                $this->logger->notice("[$mypid]restart: {$this->logString($exitcode)}");
-                exit($exitcode);
-                // @codeCoverageIgnoreEnd
-            }
-
             try {
+                $exitcode = ($this->restart)($start, $cycle);
+                if ($exitcode !== null) {
+                    throw new ExitException("code $exitcode", $exitcode);
+                }
+
                 // check standby(e.g. filesystem:unmount, mysql:replication, etc)
                 if ($this->driver->isStandby()) {
+                    $stoodby = true;
                     $this->logger->info("[$mypid]sleep: {$this->logString($cycle)}");
                     usleep(10 * 1000 * 1000);
                     continue;
+                }
+
+                // when standby is released, restart for initialization
+                if ($stoodby) {
+                    throw new ExitException("standby is released", 1);
                 }
 
                 // select next job and run
@@ -153,6 +160,10 @@ class Worker extends API
                 pcntl::signal_dispatch();
                 gc_collect_cycles();
                 $cycle++;
+            }
+            catch (ExitException $e) {
+                $this->logger->notice("[$mypid]exit: {$this->logString($e)}");
+                $e->exit();
             }
             catch (Exception $e) {
                 $this->logger->error("[$mypid]exception: {$this->logString($e)}");

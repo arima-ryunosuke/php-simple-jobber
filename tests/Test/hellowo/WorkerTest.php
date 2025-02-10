@@ -12,6 +12,7 @@ use LogicException;
 use Psr\Log\NullLogger;
 use RuntimeException;
 use ryunosuke\hellowo\Driver\AbstractDriver;
+use ryunosuke\hellowo\Exception\ExitException;
 use ryunosuke\hellowo\Exception\RetryableException;
 use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\hellowo\ext\posix;
@@ -167,7 +168,6 @@ class WorkerTest extends AbstractTestCase
         ]);
     }
 
-
     function test_standby()
     {
         $stdout = $this->emptyDirectory() . '/stdout.txt';
@@ -195,6 +195,29 @@ class WorkerTest extends AbstractTestCase
         $worker->start();
 
         that($stdout)->fileEquals("1234");
+    }
+
+    function test_stoodby()
+    {
+        $worker = that(new Worker([
+            'work'     => function (Message $message) { },
+            'driver'   => $this->createDriver(function ($count) {
+                return new Message($count, $count);
+            }, function () {
+                static $counter = 0;
+                return $counter++ < 2;
+            }),
+            'logger'   => new ArrayLogger($logs),
+            'listener' => new ArrayListener($events),
+            'signals'  => [],
+            'timeout'  => 1,
+        ]));
+
+        $worker->start()->wasThrown(ExitException::class);
+
+        that($logs)->matchesCountEquals([
+            '#^\\[\\d+\\]sleep:#' => 1,
+        ]);
     }
 
     function test_signal()
@@ -306,6 +329,7 @@ class WorkerTest extends AbstractTestCase
         $worker = that(new Worker([
             'work'    => function () { },
             'driver'  => $this->createDriver(function () { return null; }),
+            'logger'  => new ArrayLogger($logs),
             'restart' => fn() => true,
         ]));
 
@@ -325,7 +349,6 @@ class WorkerTest extends AbstractTestCase
         // null or default
         $worker->restartClosure(null)(0, 0)->is(null);
 
-        // phpunit itself is exited.
-        //$worker->start();
+        $worker->start()->wasThrown(ExitException::class);
     }
 }
