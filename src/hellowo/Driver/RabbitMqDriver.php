@@ -171,7 +171,7 @@ class RabbitMqDriver extends AbstractDriver
         }
 
         foreach ($this->buffer as $id => $msg) {
-            $retry = yield new Message($id, $msg->getBody());
+            $retry = yield new Message($id, $msg->getBody(), 0);
             if ($retry === null) {
                 unset($this->buffer[$id]);
                 $this->channel->basic_ack($id);

@@ -113,6 +113,7 @@ class MySqlDriver extends AbstractDriver
                 message   LONGBLOB NOT NULL,
                 priority  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
                 start_at  DATETIME NOT NULL DEFAULT NOW(),
+                retry     INT UNSIGNED NOT NULL DEFAULT 0,
                 PRIMARY KEY (job_id),
                 INDEX IDX_SELECT (start_at, priority)
             )
@@ -199,12 +200,13 @@ class MySqlDriver extends AbstractDriver
             )[0] ?? null;
 
             if ($job) {
-                $retry = yield new Message($job['job_id'], $job['message']);
+                $job['retry'] ??= 0; // for compatible
+                $retry = yield new Message($job['job_id'], $job['message'], $job['retry']);
                 if ($retry === null) {
                     $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job['job_id']]);
                 }
                 else {
-                    $this->execute("UPDATE {$this->table} SET start_at = NOW() + INTERVAL ? SECOND WHERE job_id = ?", [$retry, $job['job_id']]);
+                    $this->execute("UPDATE {$this->table} SET start_at = NOW() + INTERVAL ? SECOND, retry = ? WHERE job_id = ?", [$retry, $job['retry'] + 1, $job['job_id']]);
                 }
             }
             $this->connection->commit();

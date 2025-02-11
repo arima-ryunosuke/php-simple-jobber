@@ -55,6 +55,7 @@ class GearmanDriverTest extends AbstractTestCase
         $generator->send(2);
         $generator = $driver->select();
         $message   = $generator->current();
+        $message->getRetry()->is(0);
         $message->getContents()->is('C');
 
         $driver->error(new Exception())->isFalse();

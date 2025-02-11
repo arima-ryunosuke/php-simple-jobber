@@ -135,7 +135,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 6) {
                     throw new LogicException('stop');
                 }
-                return new Message($count, $count);
+                return new Message($count, $count, 0);
             }),
             'logger'   => new ArrayLogger($logs),
             'listener' => new ArrayListener($events),
@@ -181,7 +181,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 5) {
                     throw new LogicException('stop');
                 }
-                return new Message($count, $count);
+                return new Message($count, $count, 0);
             }, function () {
                 static $counter = 0;
                 return $counter++ < 1;
@@ -202,7 +202,7 @@ class WorkerTest extends AbstractTestCase
         $worker = that(new Worker([
             'work'     => function (Message $message) { },
             'driver'   => $this->createDriver(function ($count) {
-                return new Message($count, $count);
+                return new Message($count, $count, 0);
             }, function () {
                 static $counter = 0;
                 return $counter++ < 2;
@@ -235,7 +235,7 @@ class WorkerTest extends AbstractTestCase
                     posix::kill(getmypid(), pcntl::SIGUSR2);
                 }
                 if ($count === 2) {
-                    return new Message($count, $count);
+                    return new Message($count, $count, 0);
                 }
                 return null;
             }),
@@ -269,7 +269,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 3) {
                     posix::kill(getmypid(), pcntl::SIGTERM);
                 }
-                return new Message($count, $count);
+                return new Message($count, $count, 0);
             }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
@@ -290,7 +290,7 @@ class WorkerTest extends AbstractTestCase
     {
         $worker = new Worker([
             'work'    => function () { throw new Error('error message'); },
-            'driver'  => $this->createDriver(function () { return new Message(123, 'dummy'); }),
+            'driver'  => $this->createDriver(function () { return new Message(123, 'dummy', 0); }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
         ]);

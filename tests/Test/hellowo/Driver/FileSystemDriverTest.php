@@ -60,6 +60,7 @@ class FileSystemDriverTest extends AbstractTestCase
         sleep(2);
         $generator = $driver->select();
         $message   = $generator->current();
+        $message->getRetry()->is(1);
         $message->getContents()->is('C');
 
         $driver->error(new Exception())->isFalse();

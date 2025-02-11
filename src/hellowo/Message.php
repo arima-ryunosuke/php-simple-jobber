@@ -6,11 +6,13 @@ class Message
 {
     private string $id;
     private string $contents;
+    private int    $retry;
 
-    public function __construct(string $id, string $contents)
+    public function __construct(string $id, string $contents, int $retry)
     {
         $this->id       = $id;
         $this->contents = $contents;
+        $this->retry    = $retry;
     }
 
     public function __toString(): string
@@ -26,5 +28,10 @@ class Message
     public function getContents(): string
     {
         return $this->contents;
+    }
+
+    public function getRetry(): int
+    {
+        return $this->retry;
     }
 }

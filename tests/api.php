@@ -3,6 +3,7 @@
 use Psr\Log\AbstractLogger;
 use ryunosuke\hellowo\Client;
 use ryunosuke\hellowo\Driver\AbstractDriver;
+use ryunosuke\hellowo\Exception\RetryableException;
 use ryunosuke\hellowo\Message;
 use ryunosuke\hellowo\Worker;
 
@@ -48,6 +49,9 @@ $driver = (function (string $url) {
         case 'worker':
             $worker = new Worker([
                 'work'   => function (Message $message): string {
+                    if ($message->getContents() === 'retry' && $message->getRetry() < 5) {
+                        throw new RetryableException(0.1);
+                    }
                     fwrite(STDOUT, "$message\n");
                     return $message;
                 },

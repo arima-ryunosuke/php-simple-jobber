@@ -20,30 +20,35 @@ class FunctionalTest extends AbstractTestCase
                 'dsn'      => defined('FILESYSTEM_URL') ? FILESYSTEM_URL : null,
                 'priority' => true,
                 'delay'    => true,
+                'retry'    => true,
             ],
             'beanstalk'  => [
                 'driver'   => BeanstalkDriver::class,
                 'dsn'      => defined('BEANSTALK_URL') ? BEANSTALK_URL : null,
                 'priority' => true,
                 'delay'    => true,
+                'retry'    => false,
             ],
             'gearman'    => [
                 'driver'   => GearmanDriver::class,
                 'dsn'      => defined('GEARMAN_URL') ? GEARMAN_URL : null,
                 'priority' => true,
                 'delay'    => false, // gearman is not support delay
+                'retry'    => false,
             ],
             'mysql'      => [
                 'driver'   => MySqlDriver::class,
                 'dsn'      => defined('MYSQL_URL') ? MYSQL_URL : null,
                 'priority' => true,
                 'delay'    => true,
+                'retry'    => true,
             ],
             'rabbitmq'   => [
                 'driver'   => RabbitMqDriver::class,
                 'dsn'      => defined('RABBITMQ_URL') ? RABBITMQ_URL : null,
                 'priority' => true,
                 'delay'    => false, // rabbitmq requres rabbitmq_delayed_message_exchange
+                'retry'    => false,
             ],
         ];
         $drivers = array_filter($drivers, function ($driver) {
@@ -83,11 +88,17 @@ class FunctionalTest extends AbstractTestCase
                 that($client->getErrorOutput())->is('');
             }
 
-            // send first/final event
+            // send first/final/retry event
             $client = new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'first', 2, 0]);
             $client->run();
             $client = new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'final', 0, 5]);
             $client->run();
+            $initialData = ['first', 'final'];
+            if ($options['retry']) {
+                $client = new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'retry', 0, 0]);
+                $client->run();
+                $initialData[] = 'retry';
+            }
 
             // wait final request
             while (strpos($worker->getOutput(), 'final') === false) {
@@ -102,7 +113,7 @@ class FunctionalTest extends AbstractTestCase
             // assert
             that($output)->containsAll($data);
             that(substr_count($output, "data-"))->as($output)->is(count($data));
-            that(substr_count($error, "done:"))->as($error)->is(count($data) + count(['first', 'final']));
+            that(substr_count($error, "done:"))->as($error)->is(count($data) + count($initialData));
             if ($options['delay']) {
                 that(trim($output))->as('"first" should have been reached first by delay.')->prefixIs('first');
                 that(trim($output))->as('"final" should have been reached final by delay.')->suffixIs('final');

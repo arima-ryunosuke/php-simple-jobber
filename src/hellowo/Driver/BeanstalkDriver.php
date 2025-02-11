@@ -58,7 +58,7 @@ class BeanstalkDriver extends AbstractDriver
     {
         $job = $this->connection->reserveWithTimeout($this->waittime);
         if ($job) {
-            $retry = yield new Message($job->getId(), $job->getData());
+            $retry = yield new Message($job->getId(), $job->getData(), 0);
             if ($retry === null) {
                 $this->connection->delete($job);
             }

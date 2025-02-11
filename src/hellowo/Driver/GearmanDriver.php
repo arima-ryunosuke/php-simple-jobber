@@ -84,7 +84,7 @@ class GearmanDriver extends AbstractDriver
         }
 
         foreach ($this->buffer as $id => $job) {
-            $retry = yield new Message($job->unique(), $job->workload());
+            $retry = yield new Message($job->unique(), $job->workload(), 0);
             if ($retry === null) {
                 unset($this->buffer[$id]);
             }

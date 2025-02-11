@@ -117,11 +117,14 @@ class FileSystemDriver extends AbstractDriver
 
                 // renames fail at race condition
                 if (@rename($filepath, $workfile)) {
-                    $retry = yield new Message(basename($filepath), file_get_contents($workfile));
+                    $job = json_decode(file_get_contents($workfile), true) ?? ['contents' => file_get_contents($workfile), 'retry' => 0]; // for compatible
+                    $retry = yield new Message(basename($filepath), $job['contents'], $job['retry']);
                     if ($retry === null) {
                         unlink($workfile);
                     }
                     else {
+                        $job['retry']++;
+                        file_put_contents($workfile, json_encode($job));
                         rename($workfile, $filepath);
                         touch($filepath, time() + $retry);
                     }
@@ -154,7 +157,7 @@ class FileSystemDriver extends AbstractDriver
     protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
     {
         $tmpname = tempnam(sys_get_temp_dir(), sprintf('%03d', 999 - ($priority ?? 500)));
-        file_put_contents($tmpname, $contents);
+        file_put_contents($tmpname, json_encode(['contents' => $contents, 'retry' => 0]));
         touch($tmpname, time() + ($delay ?? 0));
 
         $jobname = "$this->directory/" . basename($tmpname) . uniqid('', true) . ".$this->extension";
