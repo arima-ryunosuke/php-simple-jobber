@@ -32,6 +32,7 @@ Driver features:
 | priority job                 | yes             | yes             | yes             | yes             | yes             |
 | delay job                    | yes             | no              | yes             | yes             | optional(*4)    |
 | managed retry                | no              | no              | no              | no              | yes             |
+| unmanaged retry limit        | yes             | no              | no              | yes             | no              |
 | clustering                   | no              | no              | no              | optional(*5)    | yes             |
 
 - *1 push is almost real-time, but pull has time lag due to polling
@@ -180,6 +181,11 @@ Versioning is romantic versioning(no semantic versioning).
 - major: large BC break. e.g. change architecture, package, class etc
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
+
+### 1.1.2
+
+- [feature] リトライ回数を実装
+- [fixbug] standby 状態で setup して死ぬ不具合を修正
 
 ### 1.1.1
 
