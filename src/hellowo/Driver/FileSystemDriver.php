@@ -117,7 +117,7 @@ class FileSystemDriver extends AbstractDriver
 
                 // renames fail at race condition
                 if (@rename($filepath, $workfile)) {
-                    $job = json_decode(file_get_contents($workfile), true) ?? ['contents' => file_get_contents($workfile), 'retry' => 0]; // for compatible
+                    $job   = json_decode(file_get_contents($workfile), true) ?? ['contents' => file_get_contents($workfile), 'retry' => 0]; // for compatible
                     $retry = yield new Message(basename($filepath), $job['contents'], $job['retry']);
                     if ($retry === null) {
                         unlink($workfile);

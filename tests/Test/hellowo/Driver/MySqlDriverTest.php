@@ -162,7 +162,7 @@ class MySqlDriverTest extends AbstractTestCase
         $url = MYSQL_URL;
         $cid = $connection->thread_id;
         $this->backgroundTask(function () use ($url, $cid) {
-            $connection = (fn() => $this->connection)->call(AbstractDriver::create($url));
+            $connection = (fn() => $this->connection)->bindTo(MySqlDriver::create($url), MySqlDriver::class)();
             while (true) {
                 $connection->query("KILL QUERY $cid");
                 usleep(100 * 1000);
@@ -248,7 +248,7 @@ class MySqlDriverTest extends AbstractTestCase
         $url = MYSQL_URL;
         $cid = $connection->thread_id;
         $this->backgroundTask(function () use ($url, $cid) {
-            $connection = (fn() => $this->connection)->call(AbstractDriver::create($url));
+            $connection = (fn() => $this->connection)->bindTo(MySqlDriver::create($url), MySqlDriver::class)();
             while (true) {
                 $connection->query("KILL QUERY $cid");
                 usleep(500 * 1000);

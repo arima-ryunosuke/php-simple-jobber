@@ -7,7 +7,6 @@ use Generator;
 use mysqli;
 use mysqli_result;
 use mysqli_sql_exception;
-use RuntimeException;
 use ryunosuke\hellowo\Message;
 use Throwable;
 
@@ -201,7 +200,7 @@ class MySqlDriver extends AbstractDriver
 
             if ($job) {
                 $job['retry'] ??= 0; // for compatible
-                $retry = yield new Message($job['job_id'], $job['message'], $job['retry']);
+                $retry        = yield new Message($job['job_id'], $job['message'], $job['retry']);
                 if ($retry === null) {
                     $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job['job_id']]);
                 }

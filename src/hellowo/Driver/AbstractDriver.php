@@ -21,7 +21,8 @@ abstract class AbstractDriver extends API
         return true;
     }
 
-    public static function create(string $url, array $additinalParams = []): self
+    /** @return static */
+    public static function create(string $url, array $additinalParams = []): self/*static*/
     {
         $parts = parse_url($url);
         parse_str($parts['query'] ?? '', $parts['query']);
