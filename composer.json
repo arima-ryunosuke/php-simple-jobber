@@ -36,7 +36,8 @@
   },
   "autoload": {
     "psr-4": {
-      "ryunosuke\\hellowo\\": "src/hellowo"
+      "ryunosuke\\hellowo\\": "src/hellowo",
+      "ryunosuke\\hellowo\\ext\\": "src/ext"
     }
   },
   "autoload-dev": {

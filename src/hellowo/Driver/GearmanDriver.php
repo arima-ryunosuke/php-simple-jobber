@@ -3,11 +3,11 @@
 namespace ryunosuke\hellowo\Driver;
 
 use Exception;
-use GearmanClient;
-use GearmanJob;
-use GearmanWorker;
 use Generator;
 use ryunosuke\hellowo\ext\gearman;
+use ryunosuke\hellowo\ext\gearman\GearmanClient;
+use ryunosuke\hellowo\ext\gearman\GearmanJob;
+use ryunosuke\hellowo\ext\gearman\GearmanWorker;
 use ryunosuke\hellowo\Message;
 
 /**

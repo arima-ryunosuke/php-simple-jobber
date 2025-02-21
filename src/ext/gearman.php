@@ -1,7 +1,6 @@
 <?php
 /**
  * @codeCoverageIgnore this is minimally emulation on windows for test
- * @noinspection PhpIgnoredClassAliasDeclaration
  */
 namespace ryunosuke\hellowo\ext;
 
@@ -25,9 +24,6 @@ foreach ([
     define(__NAMESPACE__ . "\\$name", defined($name) ? constant($name) : $value);
 }
 
-/**
- * @codeCoverageIgnore this is minimally emulation on windows for test
- */
 class gearman
 {
     public const GEARMAN_NO_JOBS               = GEARMAN_NO_JOBS;
@@ -44,10 +40,4 @@ class gearman
     public const GEARMAN_UNKNOWN_OPTION        = GEARMAN_UNKNOWN_OPTION;
     public const GEARMAN_TIMEOUT               = GEARMAN_TIMEOUT;
     public const GEARMAN_MAX_RETURN            = GEARMAN_MAX_RETURN;
-}
-
-if (!extension_loaded('gearman')) {
-    class_alias(gearman\GearmanClient::class, \GearmanClient::class);
-    class_alias(gearman\GearmanWorker::class, 'GearmanWorker');
-    class_alias(gearman\GearmanJob::class, 'GearmanJob');
 }

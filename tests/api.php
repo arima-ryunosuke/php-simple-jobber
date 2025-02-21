@@ -8,7 +8,6 @@ use ryunosuke\hellowo\Message;
 use ryunosuke\hellowo\Worker;
 
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../src/hellowo/ext/gearman.php';
 
 // create driver
 $driver = (function (string $url) {

@@ -23,8 +23,5 @@
         <include>
             <directory suffix=".php">../src/hellowo</directory>
         </include>
-        <exclude>
-            <directory suffix=".php">../src/hellowo/ext</directory>
-        </exclude>
     </coverage>
 </phpunit>
