@@ -1,7 +1,7 @@
 <?php
 
 use Psr\Log\AbstractLogger;
-use ryunosuke\hellowo\Listener;
+use ryunosuke\hellowo\Listener\AbstractListener;
 use ryunosuke\hellowo\Message;
 use ryunosuke\PHPUnit\Actual;
 
@@ -46,7 +46,7 @@ class ArrayLogger extends AbstractLogger
     }
 }
 
-class ArrayListener implements Listener
+class ArrayListener extends AbstractListener
 {
     private $events;
 

@@ -7,7 +7,6 @@ use Exception;
 use Generator;
 use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\hellowo\ext\posix;
-use Throwable;
 
 // @codeCoverageIgnoreStart
 // This constant is only for property assignment dynamically(expression) and has no other meaning
@@ -129,28 +128,6 @@ abstract class API
      * @return int clear count
      */
     protected function clear(): int { }
-
-    /**
-     * new NullListener for doNothing
-     *
-     * @return Listener
-     */
-    protected function NullListener(): Listener
-    {
-        return new class implements Listener {
-            public function onSend(?string $jobId): void { }
-
-            public function onDone(Message $message, $return): void { }
-
-            public function onFail(Message $message, Throwable $t): void { }
-
-            public function onRetry(Message $message, Throwable $t): void { }
-
-            public function onTimeout(Message $message, Throwable $t): void { }
-
-            public function onCycle(int $cycle): void { }
-        };
-    }
 
     /**
      * new Closure for restart

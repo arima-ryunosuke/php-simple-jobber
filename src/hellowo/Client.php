@@ -6,12 +6,14 @@ use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use ryunosuke\hellowo\Driver\AbstractDriver;
+use ryunosuke\hellowo\Listener\ListenerInterface;
+use ryunosuke\hellowo\Listener\NullListener;
 
 class Client extends API
 {
-    private AbstractDriver  $driver;
-    private LoggerInterface $logger;
-    private Listener        $listener;
+    private AbstractDriver    $driver;
+    private LoggerInterface   $logger;
+    private ListenerInterface $listener;
 
     /**
      * constructor
@@ -26,13 +28,13 @@ class Client extends API
         if (!isset($options['driver']) || !$options['driver'] instanceof AbstractDriver) {
             throw new InvalidArgumentException("driver is required");
         }
-        if (isset($options['listener']) && !$options['listener'] instanceof Listener) {
+        if (isset($options['listener']) && !$options['listener'] instanceof ListenerInterface) {
             throw new InvalidArgumentException("listener must be Listener");
         }
 
         $this->driver   = $options['driver'];
         $this->logger   = $options['logger'] ?? new NullLogger();
-        $this->listener = $options['listener'] ?? $this->NullListener();
+        $this->listener = $options['listener'] ?? new NullListener();
     }
 
     public function setup(bool $forcibly = false): void

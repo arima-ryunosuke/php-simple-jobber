@@ -2,19 +2,11 @@
 
 namespace ryunosuke\hellowo;
 
-use Throwable;
+use ryunosuke\hellowo\Listener\ListenerInterface;
 
-interface Listener
+/**
+ * @deprecated delete in future scope. use ListenerInterface
+ */
+interface Listener extends ListenerInterface
 {
-    public function onSend(?string $jobId): void;
-
-    public function onDone(Message $message, $return): void;
-
-    public function onFail(Message $message, Throwable $t): void;
-
-    public function onRetry(Message $message, Throwable $t): void;
-
-    public function onTimeout(Message $message, Throwable $t): void;
-
-    public function onCycle(int $cycle): void;
 }

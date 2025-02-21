@@ -11,18 +11,20 @@ use ryunosuke\hellowo\Exception\ExitException;
 use ryunosuke\hellowo\Exception\RetryableException;
 use ryunosuke\hellowo\Exception\TimeoutException;
 use ryunosuke\hellowo\ext\pcntl;
+use ryunosuke\hellowo\Listener\ListenerInterface;
+use ryunosuke\hellowo\Listener\NullListener;
 use ryunosuke\hellowo\Logger\EchoLogger;
 use Throwable;
 
 class Worker extends API
 {
-    private Closure         $work;
-    private AbstractDriver  $driver;
-    private LoggerInterface $logger;
-    private Listener        $listener;
-    private array           $signals;
-    private int             $timeout;
-    private Closure         $restart;
+    private Closure           $work;
+    private AbstractDriver    $driver;
+    private LoggerInterface   $logger;
+    private ListenerInterface $listener;
+    private array             $signals;
+    private int               $timeout;
+    private Closure           $restart;
 
     /**
      * constructor
@@ -47,14 +49,14 @@ class Worker extends API
         if (isset($options['signals'][pcntl::SIGUSR1]) || isset($options['signals'][pcntl::SIGALRM])) {
             throw new InvalidArgumentException("SIGUSR1,SIGALRM is reserved");
         }
-        if (isset($options['listener']) && !$options['listener'] instanceof Listener) {
+        if (isset($options['listener']) && !$options['listener'] instanceof ListenerInterface) {
             throw new InvalidArgumentException("listener must be Listener");
         }
 
         $this->work     = Closure::fromCallable($options['work']);
         $this->driver   = $options['driver'];
         $this->logger   = $options['logger'] ?? new EchoLogger();
-        $this->listener = $options['listener'] ?? $this->NullListener();
+        $this->listener = $options['listener'] ?? new NullListener();
         $this->signals  = ($options['signals'] ?? []) + self::HANDLING_SIGNALS;
         $this->timeout  = $options['timeout'] ?? 0;
         $this->restart  = $this->restartClosure($options['restart'] ?? null);
