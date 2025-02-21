@@ -57,6 +57,11 @@ class Client extends API
         return $id;
     }
 
+    public function sendJson($contents, ?int $priority = null, ?float $delay = null): ?string
+    {
+        return $this->send(json_encode($contents, JSON_UNESCAPED_UNICODE), $priority, $delay);
+    }
+
     public function notify(int $count = 1): int
     {
         $this->logger->info("notify: {$this->logString(get_defined_vars())}");

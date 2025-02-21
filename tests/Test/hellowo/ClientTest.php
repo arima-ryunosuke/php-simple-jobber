@@ -74,6 +74,8 @@ class ClientTest extends AbstractTestCase
         $client->notify()->is(0);
         $client->send('data-2', 2, 2)->is(3);
         $client->notify()->is(0);
+        $client->sendJson(['t' => 1234567890])->is(4);
+        $client->notify()->is(0);
 
         that($data)->is([
             [
@@ -91,18 +93,23 @@ class ClientTest extends AbstractTestCase
                 "priority" => 2,
                 "delay"    => 2.0,
             ],
+            [
+                "contents" => '{"t":1234567890}',
+                "priority" => null,
+                "delay"    => null,
+            ],
         ]);
 
         that($logs)->matchesCountEquals([
             '#^setup#'  => 1,
-            '#^send#'   => 3,
-            '#^notify#' => 3,
+            '#^send#'   => 4,
+            '#^notify#' => 4,
         ]);
 
         that($events)->is([
-            "send" => ["1", "2", "3"],
+            "send" => ["1", "2", "3", "4"],
         ]);
 
-        $client->clear()->is(3);
+        $client->clear()->is(4);
     }
 }

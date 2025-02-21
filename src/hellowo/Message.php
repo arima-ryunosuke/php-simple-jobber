@@ -30,6 +30,11 @@ class Message
         return $this->contents;
     }
 
+    public function getJsonContents(int $flags = JSON_THROW_ON_ERROR | JSON_OBJECT_AS_ARRAY) /*:mixed*/
+    {
+        return json_decode($this->contents, null, 2147483647, $flags);
+    }
+
     public function getRetry(): int
     {
         return $this->retry;
