@@ -2,11 +2,13 @@
 
 namespace ryunosuke\hellowo;
 
-use Closure;
 use Exception;
 use Generator;
+use JsonSerializable;
 use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\hellowo\ext\posix;
+use stdClass;
+use Throwable;
 
 // @codeCoverageIgnoreStart
 // This constant is only for property assignment dynamically(expression) and has no other meaning
@@ -130,34 +132,39 @@ abstract class API
     protected function clear(): int { }
 
     /**
-     * new Closure for restart
+     * stringify for log
      *
-     * @return Closure
+     * @return string log string
      */
-    protected function restartClosure($restartMode): Closure
+    protected function logString($log_data): string
     {
-        // as it is
-        if (is_callable($restartMode)) {
-            return Closure::fromCallable($restartMode);
-        }
-        // lifetime
-        if (is_int($restartMode) || is_float($restartMode)) {
-            return fn($start, $cycle) => (microtime(true) - $start) > $restartMode ? 1 : null;
-        }
-        // included file was modified
-        if ($restartMode == 'change') {
-            return function ($start, $cycle) {
-                foreach (get_included_files() as $filename) {
-                    $mtime = file_exists($filename) ? filemtime($filename) : PHP_INT_MAX;
-                    if ($mtime > $start) {
-                        return 1;
-                    }
-                }
-                return null;
-            };
+        $is_array = is_array($log_data);
+        if (!$is_array) {
+            $log_data = [$log_data];
         }
 
-        // default
-        return fn() => null;
+        array_walk_recursive($log_data, function (&$v) {
+            if ($v instanceof Throwable) {
+                $v = sprintf('caught %s(%s, %s) in %s:%s', get_class($v), $v->getCode(), $v->getMessage(), $v->getFile(), $v->getLine());
+            }
+            if (is_resource($v) || (is_object($v) && method_exists($v, '__toString'))) {
+                $v = (string) $v;
+            }
+            if ($v instanceof JsonSerializable || (is_object($v) && get_class($v) === stdClass::class)) {
+                $v = json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            }
+            if (is_object($v)) {
+                $v = get_class($v) . json_encode($v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
+            }
+        });
+
+        if ($is_array) {
+            $log_data = json_encode($log_data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+        else {
+            $log_data = $log_data[0];
+        }
+
+        return (string) $log_data;
     }
 }

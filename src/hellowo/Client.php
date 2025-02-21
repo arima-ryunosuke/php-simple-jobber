@@ -39,19 +39,19 @@ class Client extends API
 
     public function setup(bool $forcibly = false): void
     {
-        $this->logger->info('setup', get_defined_vars());
+        $this->logger->info("setup: {$this->logString(get_defined_vars())}");
         $this->driver->setup(...func_get_args());
     }
 
     public function isStandby(): bool
     {
-        $this->logger->info('isStandby', get_defined_vars());
+        $this->logger->info("isStandby: {$this->logString(get_defined_vars())}");
         return $this->driver->isStandby();
     }
 
     public function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
     {
-        $this->logger->info('send', get_defined_vars());
+        $this->logger->info("send: {$this->logString(get_defined_vars())}");
         $id = $this->driver->send(...func_get_args());
         $this->listener->onSend($id);
         return $id;
@@ -59,13 +59,13 @@ class Client extends API
 
     public function notify(int $count = 1): int
     {
-        $this->logger->info('notify', get_defined_vars());
+        $this->logger->info("notify: {$this->logString(get_defined_vars())}");
         return $this->driver->notify($count);
     }
 
     public function clear(): int
     {
-        $this->logger->notice('clear', get_defined_vars());
+        $this->logger->notice("clear: {$this->logString(get_defined_vars())}");
         return $this->driver->clear();
     }
 }

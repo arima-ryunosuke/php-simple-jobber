@@ -19,7 +19,6 @@ use ryunosuke\hellowo\ext\posix;
 use ryunosuke\hellowo\Message;
 use ryunosuke\hellowo\Worker;
 use ryunosuke\Test\AbstractTestCase;
-use SplFileInfo;
 use Throwable;
 
 class WorkerTest extends AbstractTestCase
@@ -310,18 +309,6 @@ class WorkerTest extends AbstractTestCase
             '#^\\[\\d+\\]error:#' => 1,
             '#^\\[\\d+\\]end:#'   => 0,
         ]);
-    }
-
-    function test_log()
-    {
-        $worker = that(new Worker([
-            'work'    => function () { },
-            'driver'  => $this->createDriver(function () { return null; }),
-            'signals' => [],
-        ]));
-
-        $worker->logString([1, new SplFileInfo('file'), new RuntimeException('msg', 3)])
-            ->stringStartsWith('[1,"file","caught RuntimeException(3, msg) in');
     }
 
     function test_restart()

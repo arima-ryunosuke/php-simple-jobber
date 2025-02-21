@@ -185,26 +185,30 @@ class Worker extends API
         $this->logger->info("[$mypid]end: {$this->logString($cycle)}");
     }
 
-    private function logString($log_data): string
+    private function restartClosure($restartMode): Closure
     {
-        $stringify = function (&$v) {
-            if ($v instanceof Throwable) {
-                $v = sprintf('caught %s(%s, %s) in %s:%s', get_class($v), $v->getCode(), $v->getMessage(), $v->getFile(), $v->getLine());
-            }
-            if (is_resource($v) || (is_object($v) && method_exists($v, '__toString'))) {
-                $v = (string) $v;
-            }
-        };
-        if (is_array($log_data)) {
-            array_walk_recursive($log_data, $stringify);
+        // as it is
+        if (is_callable($restartMode)) {
+            return Closure::fromCallable($restartMode);
         }
-        else {
-            $stringify($log_data);
+        // lifetime
+        if (is_int($restartMode) || is_float($restartMode)) {
+            return fn($start, $cycle) => (microtime(true) - $start) > $restartMode ? 1 : null;
         }
-        if ((is_object($log_data) && !method_exists($log_data, '__toString')) || is_array($log_data)) {
-            $log_data = json_encode($log_data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        // included file was modified
+        if ($restartMode == 'change') {
+            return function ($start, $cycle) {
+                foreach (get_included_files() as $filename) {
+                    $mtime = file_exists($filename) ? filemtime($filename) : PHP_INT_MAX;
+                    if ($mtime > $start) {
+                        return 1;
+                    }
+                }
+                return null;
+            };
         }
 
-        return (string) $log_data;
+        // default
+        return fn() => null;
     }
 }
