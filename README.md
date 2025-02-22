@@ -182,6 +182,13 @@ Versioning is romantic versioning(no semantic versioning).
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
 
+### 1.1.3
+
+- [feature] JSON を組み込みで実装
+- [refactor] API の整理
+- [refactor] ext のパスを変更
+- [refactor] Listener の階層を Logger と合わせる
+
 ### 1.1.2
 
 - [feature] リトライ回数を実装
