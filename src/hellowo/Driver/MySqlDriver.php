@@ -44,6 +44,8 @@ class MySqlDriver extends AbstractDriver
     private int   $heartbeat;
     private float $heartbeatTimer;
 
+    private bool $syscalled = false;
+
     public function __construct(array $options)
     {
         $options = self::normalizeOptions($options, [
@@ -276,13 +278,7 @@ class MySqlDriver extends AbstractDriver
                 $read = $error = $reject = [$this->connection];
                 if (@mysqli::poll($read, $error, $reject, 1) === false) {
                     // @codeCoverageIgnoreStart
-                    if (isset($this->transport)) {
-                        // killed by other connection for USR1
-                        $mysqli = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $this->transport));
-                        $mysqli->prepare("KILL QUERY {$this->connection->thread_id}")->execute();
-                        $mysqli->close();
-                        $this->connection->reap_async_query();
-                    }
+                    $this->syscalled = true;
                     return;
                     // @codeCoverageIgnoreEnd
                 }
@@ -349,6 +345,15 @@ class MySqlDriver extends AbstractDriver
 
     protected function execute(string $query, array $bind = [])
     {
+        // poll called by other process for USR1
+        if ($this->syscalled && isset($this->transport)) {
+            $this->syscalled = false;
+            $mysqli          = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $this->transport));
+            $mysqli->prepare("KILL QUERY {$this->connection->thread_id}")->execute();
+            $mysqli->close();
+            $this->connection->reap_async_query();
+        }
+
         $statement = $this->connection->prepare($query);
         if ($bind) {
             $statement->bind_param(str_repeat('s', count($bind)), ...array_values($bind));

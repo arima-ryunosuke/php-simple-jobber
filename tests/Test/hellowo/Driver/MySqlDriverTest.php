@@ -178,6 +178,23 @@ class MySqlDriverTest extends AbstractTestCase
         $driver->close();
     }
 
+    function test_sleep_sql_sigusr1()
+    {
+        $driver = that(AbstractDriver::create(MYSQL_URL, [
+            'waittime' => 2,
+            'waitmode' => 'sql',
+        ]));
+        $driver->setup(true);
+
+        $driver->syscalled = true;
+        $driver->connection->query("SELECT SLEEP(1)", MYSQLI_ASYNC);
+        $driver->execute('SELECT ? AS c', [1])->is([
+            ['c' => 1],
+        ]);
+
+        $driver->close();
+    }
+
     function test_recover()
     {
         $tmpdriver = that(AbstractDriver::create(MYSQL_URL, [
