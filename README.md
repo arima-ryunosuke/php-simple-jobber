@@ -182,6 +182,11 @@ Versioning is romantic versioning(no semantic versioning).
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
 
+### 1.1.4
+
+- [fixbug] USR1 以外でも async をキャンセルしていた
+- [fixbug] select と sleep で使用されるインデックスが異なる可能性がある
+
 ### 1.1.3
 
 - [feature] JSON を組み込みで実装
