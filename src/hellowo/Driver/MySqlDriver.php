@@ -194,9 +194,7 @@ class MySqlDriver extends AbstractDriver
         $this->connection->begin_transaction();
         try {
             // mysql's lock is index lock. therefore must be locked by primary key
-            $job = $this->execute(
-                "SELECT * FROM {$this->table} WHERE job_id = (SELECT job_id FROM {$this->table} WHERE start_at <= NOW() ORDER BY priority DESC LIMIT 1) FOR UPDATE SKIP LOCKED",
-            )[0] ?? null;
+            $job = $this->execute($this->selectJob())[0] ?? null;
 
             if ($job) {
                 $job['retry'] ??= 0; // for compatible
@@ -272,7 +270,7 @@ class MySqlDriver extends AbstractDriver
             // combination technique async select sleep and select syscall
             // - select sleep:   able to kill, but unable to receive signal
             // - select syscall: unable to kill, but able to receive signal
-            $this->connection->query("/*by {$this->table}*/ SELECT IF(EXISTS(SELECT * FROM {$this->table} WHERE start_at <= NOW() FOR UPDATE SKIP LOCKED), 1, SLEEP({$this->waittime})) AS c", MYSQLI_ASYNC);
+            $this->connection->query("/*by {$this->table}*/ SELECT IF(EXISTS({$this->selectJob()}), 1, SLEEP({$this->waittime})) AS c", MYSQLI_ASYNC);
 
             do {
                 $read = $error = $reject = [$this->connection];
@@ -341,6 +339,12 @@ class MySqlDriver extends AbstractDriver
         return $this->execute(
             "SELECT * FROM information_schema.PROCESSLIST WHERE DB = DATABASE() AND ID <> CONNECTION_ID() AND USER = SUBSTRING_INDEX(USER(), '@', 1)",
         );
+    }
+
+    protected function selectJob(): string
+    {
+        // mysql's lock is index lock. therefore must be locked by primary key
+        return "SELECT * FROM {$this->table} WHERE job_id = (SELECT job_id FROM {$this->table} WHERE start_at <= NOW() ORDER BY priority DESC LIMIT 1) FOR UPDATE SKIP LOCKED";
     }
 
     protected function execute(string $query, array $bind = [])
