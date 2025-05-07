@@ -23,17 +23,17 @@ This requires `pcntl` extension. Also, Windows only works minimally.
 
 Driver features:
 
-| feature                      | FileSystem      | Gearman         | Beanstalk       | MySql           | RabbitMQ        |
-|------------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|
-| simply                       | very high       | high            | high            | middle          | low             |
-| pull or push(*1)             | pull            | push            | push            | pull            | push            |
-| multi worker server          | optional(*2)    | yes             | yes             | yes             | yes             |
-| not lost to sudden death(*3) | yes (ttr)       | no              | yes (ttr)       | yes (kill)      | yes (heartbeat) |
-| priority job                 | yes             | yes             | yes             | yes             | yes             |
-| delay job                    | yes             | no              | yes             | yes             | optional(*4)    |
-| managed retry                | no              | no              | no              | no              | yes             |
-| unmanaged retry limit        | yes             | no              | no              | yes             | no              |
-| clustering                   | no              | no              | no              | optional(*5)    | yes             |
+| feature                      | FileSystem      | Gearman         | Beanstalk       | MySql           | PostgreSql      | RabbitMQ        |
+|------------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| simply                       | very high       | high            | high            | middle          | middle          | low             |
+| pull or push(*1)             | pull(&inotify)  | push            | push            | pull(&trigger)  | pull(&pub/sub)  | push            |
+| multi worker server          | optional(*2)    | yes             | yes             | yes             | yes             | yes             |
+| not lost to sudden death(*3) | yes (ttr)       | no              | yes (ttr)       | yes (kill)      | yes (keepalive) | yes (heartbeat) |
+| priority job                 | yes             | yes             | yes             | yes             | yes             | yes             |
+| delay job                    | yes             | no              | yes             | yes             | yes             | optional(*4)    |
+| managed retry                | no              | no              | no              | no              | no              | yes             |
+| unmanaged retry limit        | yes             | no              | no              | yes             | yes             | no              |
+| clustering                   | no              | no              | no              | optional(*5)    | optional(*5)    | yes             |
 
 - *1 push is almost real-time, but pull has time lag due to polling
 - *2 e.g. NFS
@@ -181,6 +181,15 @@ Versioning is romantic versioning(no semantic versioning).
 - major: large BC break. e.g. change architecture, package, class etc
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
+
+### 1.1.5
+
+- [feature] PostgreSqlDriver
+- [fixbug] 初回実行時に setup されない不具合
+- [fixbug] 一部のドライバーにミリ秒を与えるとエラーになる
+- [fixbug] heartbeat 秒応答がないホストに対して heartbeat 秒 ping を待機している
+- [feature] delay がある場合は notify しても無駄
+- [feature] MySql のミリ秒対応
 
 ### 1.1.4
 
