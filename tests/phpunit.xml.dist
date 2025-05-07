@@ -16,6 +16,7 @@
         <const name="GEARMAN_URL" value="gearman://127.0.0.1:4730/testjobs"/>
         <const name="BEANSTALK_URL" value="beanstalk://127.0.0.1:21300/testjobs"/>
         <const name="MYSQL_URL" value="mysql://user:password@127.0.0.1:23306/hellowo.testjobs"/>
+        <const name="PGSQL_URL" value="pgsql://user:password@127.0.0.1:25432/hellowo.testjobs"/>
         <const name="RABBITMQ_URL" value="rabbitmq://user:password@127.0.0.1:25672/testjobs"/>
     </php>
 

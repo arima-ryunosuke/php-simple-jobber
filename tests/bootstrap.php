@@ -29,6 +29,7 @@ if (false) {
     define('BEANSTALK_URL', '');
     define('GEARMAN_URL', '');
     define('MYSQL_URL', '');
+    define('PGSQL_URL', '');
     define('RABBITMQ_URL', '');
 }
 

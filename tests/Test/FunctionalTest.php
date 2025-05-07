@@ -6,6 +6,7 @@ use ryunosuke\hellowo\Driver\BeanstalkDriver;
 use ryunosuke\hellowo\Driver\FileSystemDriver;
 use ryunosuke\hellowo\Driver\GearmanDriver;
 use ryunosuke\hellowo\Driver\MySqlDriver;
+use ryunosuke\hellowo\Driver\PostgreSqlDriver;
 use ryunosuke\hellowo\Driver\RabbitMqDriver;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
@@ -39,6 +40,13 @@ class FunctionalTest extends AbstractTestCase
             'mysql'      => [
                 'driver'   => MySqlDriver::class,
                 'dsn'      => defined('MYSQL_URL') ? MYSQL_URL : null,
+                'priority' => true,
+                'delay'    => true,
+                'retry'    => true,
+            ],
+            'pgsql'      => [
+                'driver'   => PostgreSqlDriver::class,
+                'dsn'      => defined('PGSQL_URL') ? PGSQL_URL : null,
                 'priority' => true,
                 'delay'    => true,
                 'retry'    => true,

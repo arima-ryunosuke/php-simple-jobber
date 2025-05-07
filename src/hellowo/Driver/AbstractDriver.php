@@ -13,6 +13,7 @@ abstract class AbstractDriver extends API
         'beanstalk'  => BeanstalkDriver::class,
         'gearman'    => GearmanDriver::class,
         'mysql'      => MySqlDriver::class,
+        'pgsql'      => PostgreSqlDriver::class,
         'rabbitmq'   => RabbitMqDriver::class,
     ];
 
@@ -132,7 +133,7 @@ abstract class AbstractDriver extends API
                     }
                 }
                 else {
-                    $result[$path] = is_object($arguments[$key]);
+                    $result[$path] = is_object($arguments[$key]) || is_resource($arguments[$key]);
                 }
             }
         }

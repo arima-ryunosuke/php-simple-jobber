@@ -20,6 +20,16 @@ services:
     command: [ "--log_bin_trust_function_creators=1" ]
     ports:
       - 23306:3306
+  pgsql:
+    image: docker.io/postgres:16.4
+    container_name: pgsql
+    environment:
+      POSTGRES_DB: hellowo
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      TZ: 'Asia/Tokyo'
+    ports:
+      - 25432:5432
   rabbitmq:
     image: docker.io/rabbitmq:latest
     environment:
