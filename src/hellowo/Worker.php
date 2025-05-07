@@ -72,9 +72,12 @@ class Worker extends API
 
         // setup
         $this->logger->info("[$mypid]start: {$this->logString($this->driver)}");
-        if (!$this->driver->isStandby()) {
+        try {
             $this->driver->setup();
             $this->driver->daemonize();
+        }
+        catch (Exception $e) {
+            $this->logger->warning("[$mypid]setup: {$this->logString($e)}");
         }
 
         // signal handling

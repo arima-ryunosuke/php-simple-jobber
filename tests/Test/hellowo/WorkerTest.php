@@ -23,24 +23,31 @@ use Throwable;
 
 class WorkerTest extends AbstractTestCase
 {
-    function createDriver($select, $standby = null)
+    function createDriver($select, $setup = null, $standby = null)
     {
-        return new class($select, $standby) extends AbstractDriver {
-            private Closure  $select;
-            private ?Closure $standby;
+        return new class($select, $setup, $standby) extends AbstractDriver {
+            private Closure $select;
+            private Closure $setup;
+            private Closure $standby;
 
             private int $count = 1;
 
-            public function __construct($select, $standby)
+            public function __construct($select, $setup, $standby)
             {
                 $this->select  = $select;
-                $this->standby = $standby;
+                $this->standby = $standby ?? fn() => false;
+                $this->setup   = $setup ?? fn() => null;
                 parent::__construct('');
+            }
+
+            public function setup(bool $forcibly = false): void
+            {
+                ($this->setup)();
             }
 
             public function isStandby(): bool
             {
-                return $this->standby === null ? false : ($this->standby)();
+                return ($this->standby)();
             }
 
             public function select(): Generator
@@ -167,7 +174,7 @@ class WorkerTest extends AbstractTestCase
         ]);
     }
 
-    function test_standby()
+    function test_setup()
     {
         $stdout = $this->emptyDirectory() . '/stdout.txt';
 
@@ -182,8 +189,7 @@ class WorkerTest extends AbstractTestCase
                 }
                 return new Message($count, $count, 0);
             }, function () {
-                static $counter = 0;
-                return $counter++ < 1;
+                throw new RuntimeException('setup failed');
             }),
             'logger'   => new ArrayLogger($logs),
             'listener' => new ArrayListener($events),
@@ -193,16 +199,19 @@ class WorkerTest extends AbstractTestCase
 
         $worker->start();
 
+        that($logs)->matchesCountEquals([
+            '#^\\[\\d+\\]setup: caught#' => 1,
+        ]);
         that($stdout)->fileEquals("1234");
     }
 
-    function test_stoodby()
+    function test_standby()
     {
         $worker = that(new Worker([
             'work'     => function (Message $message) { },
             'driver'   => $this->createDriver(function ($count) {
                 return new Message($count, $count, 0);
-            }, function () {
+            }, null, function () {
                 static $counter = 0;
                 return $counter++ < 2;
             }),
@@ -215,7 +224,7 @@ class WorkerTest extends AbstractTestCase
         $worker->start()->wasThrown(ExitException::class);
 
         that($logs)->matchesCountEquals([
-            '#^\\[\\d+\\]sleep:#' => 1,
+            '#^\\[\\d+\\]sleep:#' => 2,
         ]);
     }
 
