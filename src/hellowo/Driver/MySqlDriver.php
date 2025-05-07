@@ -113,7 +113,7 @@ class MySqlDriver extends AbstractDriver
                 job_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 message   LONGBLOB NOT NULL,
                 priority  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-                start_at  DATETIME NOT NULL DEFAULT NOW(),
+                start_at  DATETIME(3) NOT NULL DEFAULT NOW(3),
                 retry     INT UNSIGNED NOT NULL DEFAULT 0,
                 PRIMARY KEY (job_id),
                 INDEX IDX_SELECT (start_at, priority)
@@ -205,7 +205,7 @@ class MySqlDriver extends AbstractDriver
                     $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job['job_id']]);
                 }
                 else {
-                    $this->execute("UPDATE {$this->table} SET start_at = NOW() + INTERVAL ? SECOND, retry = ? WHERE job_id = ?", [$retry, $job['retry'] + 1, $job['job_id']]);
+                    $this->execute("UPDATE {$this->table} SET start_at = NOW(3) + INTERVAL ? SECOND, retry = ? WHERE job_id = ?", [$retry, $job['retry'] + 1, $job['job_id']]);
                 }
             }
             $this->connection->commit();
@@ -240,7 +240,7 @@ class MySqlDriver extends AbstractDriver
         $priority = $priority ?? 32767;
         $delay    = $delay ?? 0;
         $this->execute(
-            "INSERT INTO {$this->table} SET message = ?, priority = ?, start_at = NOW() + INTERVAL ? SECOND",
+            "INSERT INTO {$this->table} SET message = ?, priority = ?, start_at = NOW(3) + INTERVAL ? SECOND",
             [$contents, $priority, $delay],
         );
 
@@ -340,7 +340,7 @@ class MySqlDriver extends AbstractDriver
     protected function selectJob(): string
     {
         // mysql's lock is index lock. therefore must be locked by primary key
-        return "SELECT * FROM {$this->table} WHERE job_id = (SELECT job_id FROM {$this->table} WHERE start_at <= NOW() ORDER BY priority DESC LIMIT 1) FOR UPDATE SKIP LOCKED";
+        return "SELECT * FROM {$this->table} WHERE job_id = (SELECT job_id FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC LIMIT 1) FOR UPDATE SKIP LOCKED";
     }
 
     protected function execute(string $query, array $bind = [])

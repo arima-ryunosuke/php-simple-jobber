@@ -91,7 +91,7 @@ class FunctionalTest extends AbstractTestCase
             // send first/final/retry event
             $client = new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'first', 2, 0]);
             $client->run();
-            $client = new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'final', 0, 5]);
+            $client = new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'final', 0, 6]);
             $client->run();
             $initialData = ['first', 'final'];
             if ($options['retry']) {

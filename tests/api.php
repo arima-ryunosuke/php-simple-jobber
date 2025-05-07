@@ -22,7 +22,7 @@ $driver = (function (string $url) {
     }
 
     return AbstractDriver::create($url, [
-        'waittime' => 1,
+        'waittime' => 0.5,
         'waitmode' => 'php',
     ]);
 })($argv[1] ?? '');
@@ -48,7 +48,7 @@ $driver = (function (string $url) {
         case 'worker':
             $worker = new Worker([
                 'work'   => function (Message $message): string {
-                    if ($message->getContents() === 'retry' && $message->getRetry() < 5) {
+                    if ($message->getContents() === 'retry' && $message->getRetry() < 3) {
                         throw new RetryableException(0.1);
                     }
                     fwrite(STDOUT, "$message\n");
