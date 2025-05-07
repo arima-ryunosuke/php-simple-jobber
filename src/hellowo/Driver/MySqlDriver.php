@@ -321,7 +321,7 @@ class MySqlDriver extends AbstractDriver
         foreach ($this->processlist() as $process) {
             if ($process['TIME'] >= $this->heartbeat && $process['COMMAND'] === 'Sleep') {
                 [$host] = explode(':', $process['HOST']);
-                if ($this->ping($host, $this->heartbeat) === false) {
+                if ($this->ping($host, 10) === false) {
                     $this->execute("KILL ?", [$process['ID']]);
                     $result[$process['ID']] = $process;
                 }
