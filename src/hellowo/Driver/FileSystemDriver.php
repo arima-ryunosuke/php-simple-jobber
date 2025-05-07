@@ -163,7 +163,9 @@ class FileSystemDriver extends AbstractDriver
         $jobname = "$this->directory/" . basename($tmpname) . uniqid('', true) . ".$this->extension";
         rename($tmpname, $jobname);
 
-        $this->notify();
+        if (!$delay) {
+            $this->notify();
+        }
 
         return $jobname;
     }

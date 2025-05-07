@@ -244,7 +244,7 @@ class MySqlDriver extends AbstractDriver
             [$contents, $priority, $delay],
         );
 
-        if (!$this->trigger) {
+        if (!$delay && !$this->trigger) {
             $this->notify();
         }
 
