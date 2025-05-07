@@ -62,7 +62,7 @@ class GearmanDriver extends AbstractDriver
 
         // worker
         $this->worker = new GearmanWorker();
-        $this->worker->setTimeout($options['waittime'] * 1000);
+        $this->worker->setTimeout(ceil($options['waittime'] * 1000));
 
         parent::__construct("gearman {$options['transport']['host']}:{$options['transport']['port']}/{$options['function']}");
     }

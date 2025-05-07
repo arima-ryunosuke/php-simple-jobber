@@ -126,7 +126,7 @@ class FileSystemDriver extends AbstractDriver
                         $job['retry']++;
                         file_put_contents($workfile, json_encode($job));
                         rename($workfile, $filepath);
-                        touch($filepath, time() + $retry);
+                        touch($filepath, ceil(time() + $retry));
                     }
                     return;
                 }
@@ -158,7 +158,7 @@ class FileSystemDriver extends AbstractDriver
     {
         $tmpname = tempnam(sys_get_temp_dir(), sprintf('%03d', 999 - ($priority ?? 500)));
         file_put_contents($tmpname, json_encode(['contents' => $contents, 'retry' => 0]));
-        touch($tmpname, time() + ($delay ?? 0));
+        touch($tmpname, time() + ceil($delay ?? 0));
 
         $jobname = "$this->directory/" . basename($tmpname) . uniqid('', true) . ".$this->extension";
         rename($tmpname, $jobname);

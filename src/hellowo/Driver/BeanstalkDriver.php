@@ -56,14 +56,14 @@ class BeanstalkDriver extends AbstractDriver
 
     protected function select(): Generator
     {
-        $job = $this->connection->reserveWithTimeout($this->waittime);
+        $job = $this->connection->reserveWithTimeout(ceil($this->waittime));
         if ($job) {
             $retry = yield new Message($job->getId(), $job->getData(), 0);
             if ($retry === null) {
                 $this->connection->delete($job);
             }
             else {
-                $this->connection->release($job, PheanstalkInterface::DEFAULT_PRIORITY, $retry);
+                $this->connection->release($job, PheanstalkInterface::DEFAULT_PRIORITY, ceil($retry));
             }
         }
     }
@@ -87,7 +87,7 @@ class BeanstalkDriver extends AbstractDriver
         $ttr      = $ttr ?? PheanstalkInterface::DEFAULT_TTR;
 
         // beanstalk's priority: 0 ~ 4294967295 (high ~ low)
-        $job = $this->connection->put($contents, 4294967295 - $priority, $delay, $ttr);
+        $job = $this->connection->put($contents, 4294967295 - $priority, ceil($delay), $ttr);
         return (string) $job->getId();
     }
 
