@@ -21,6 +21,7 @@ function that($value)
 }
 
 Actual::$functionNamespaces = [];
+Actual::$configuration['errorAsException'] = true;
 
 if (false) {
     /** @noinspection PhpUnreachableStatementInspection */
