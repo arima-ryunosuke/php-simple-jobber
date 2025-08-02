@@ -18,13 +18,13 @@ use Throwable;
 
 class Worker extends API
 {
-    private Closure           $work;
     private AbstractDriver    $driver;
     private LoggerInterface   $logger;
     private ListenerInterface $listener;
     private array             $signals;
     private int               $timeout;
     private Closure           $restart;
+    private Closure           $work;
 
     /**
      * constructor
@@ -40,9 +40,6 @@ class Worker extends API
      */
     public function __construct(array $options = [])
     {
-        if (!isset($options['work']) || !is_callable($options['work'])) {
-            throw new InvalidArgumentException("work is required");
-        }
         if (!isset($options['driver']) || !$options['driver'] instanceof AbstractDriver) {
             throw new InvalidArgumentException("driver is required");
         }
@@ -53,20 +50,26 @@ class Worker extends API
             throw new InvalidArgumentException("listener must be Listener");
         }
 
-        $this->work     = Closure::fromCallable($options['work']);
         $this->driver   = $options['driver'];
         $this->logger   = $options['logger'] ?? new EchoLogger();
         $this->listener = $options['listener'] ?? new NullListener();
         $this->signals  = ($options['signals'] ?? []) + self::HANDLING_SIGNALS;
         $this->timeout  = $options['timeout'] ?? 0;
         $this->restart  = $this->restartClosure($options['restart'] ?? null);
+
+        if (isset($options['work'])) {
+            $this->work = $options['work'];
+        }
     }
 
     /**
      * start as worker
      */
-    public function start(): void
+    public function start(?callable $work = null): void
     {
+        $this->work ??= Closure::fromCallable($work);
+        assert($this->work instanceof Closure);
+
         $running = true;
         $mypid   = getmypid();
 

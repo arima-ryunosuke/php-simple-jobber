@@ -86,10 +86,6 @@ class WorkerTest extends AbstractTestCase
     function test___construct()
     {
         that(Worker::class)->new([
-            'work' => 'hoge',
-        ])->wasThrown('work is required');
-
-        that(Worker::class)->new([
             'work' => function () { },
         ])->wasThrown('driver is required');
 
@@ -114,24 +110,6 @@ class WorkerTest extends AbstractTestCase
         $stdout = $this->emptyDirectory() . '/stdout.txt';
 
         $worker = new Worker([
-            'work'     => function (Message $message) use ($stdout) {
-                // fail
-                if ($message->getContents() === "2") {
-                    throw new Exception();
-                }
-                // timeout
-                if ($message->getContents() === "3") {
-                    $this->sleep(5);
-                }
-                // retry
-                if ($message->getContents() === "4") {
-                    static $retry_count = 0;
-                    if ($retry_count++ < 3) {
-                        throw new RetryableException(0.1);
-                    }
-                }
-                file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
-            },
             'driver'   => $this->createDriver(function ($count) {
                 // through
                 if ($count === 1) {
@@ -149,7 +127,24 @@ class WorkerTest extends AbstractTestCase
             'timeout'  => 1,
         ]);
 
-        $worker->start();
+        $worker->start(function (Message $message) use ($stdout) {
+            // fail
+            if ($message->getContents() === "2") {
+                throw new Exception();
+            }
+            // timeout
+            if ($message->getContents() === "3") {
+                $this->sleep(5);
+            }
+            // retry
+            if ($message->getContents() === "4") {
+                static $retry_count = 0;
+                if ($retry_count++ < 3) {
+                    throw new RetryableException(0.1);
+                }
+            }
+            file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
+        });
 
         // 1:through, 2:fail, 3:timeout, 4:fail but retry
         that($stdout)->fileEquals("45");
