@@ -193,12 +193,16 @@ class MySqlDriver extends AbstractDriver
 
     protected function select(): Generator
     {
-        $this->connection->begin_transaction();
-        try {
-            // mysql's lock is index lock. therefore must be locked by primary key
-            $job = $this->execute($this->selectJob())[0] ?? null;
+        foreach ($this->execute($this->selectJob()) as ['job_id' => $job_id]) {
+            $this->connection->begin_transaction();
+            try {
+                $job = $this->execute("SELECT * FROM {$this->table} WHERE job_id = ? FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
 
-            if ($job) {
+                if ($job === null) {
+                    $this->connection->rollback();
+                    continue;
+                }
+
                 $job['retry'] ??= 0; // for compatible
                 $retry        = yield new Message($job['job_id'], $job['message'], $job['retry']);
                 if ($retry === null) {
@@ -207,15 +211,13 @@ class MySqlDriver extends AbstractDriver
                 else {
                     $this->execute("UPDATE {$this->table} SET start_at = NOW(3) + INTERVAL ? SECOND, retry = ? WHERE job_id = ?", [$retry, $job['retry'] + 1, $job['job_id']]);
                 }
-            }
-            $this->connection->commit();
-            if ($job) {
+                $this->connection->commit();
                 return;
             }
-        }
-        catch (Throwable $ex) {
-            $this->connection->rollback();
-            throw $ex;
+            catch (Throwable $ex) {
+                $this->connection->rollback();
+                throw $ex;
+            }
         }
 
         $this->sleep();
@@ -339,8 +341,7 @@ class MySqlDriver extends AbstractDriver
 
     protected function selectJob(): string
     {
-        // mysql's lock is index lock. therefore must be locked by primary key
-        return "SELECT * FROM {$this->table} WHERE job_id = (SELECT job_id FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC LIMIT 1) FOR UPDATE SKIP LOCKED";
+        return "SELECT job_id FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC, job_id ASC FOR UPDATE SKIP LOCKED";
     }
 
     protected function execute(string $query, array $bind = [])
