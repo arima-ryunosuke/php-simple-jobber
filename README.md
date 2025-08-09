@@ -182,6 +182,10 @@ Versioning is romantic versioning(no semantic versioning).
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
 
+### 1.1.7
+
+- [fixbug] 並列数が1になることがある不具合
+
 ### 1.1.6
 
 - [feature] start 時に work を与えられる機能
