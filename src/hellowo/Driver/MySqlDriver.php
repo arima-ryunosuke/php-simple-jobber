@@ -193,7 +193,7 @@ class MySqlDriver extends AbstractDriver
 
     protected function select(): Generator
     {
-        foreach ($this->execute($this->selectJob()) as ['job_id' => $job_id]) {
+        foreach ($this->execute($this->selectJob(256)) as ['job_id' => $job_id]) {
             $this->connection->begin_transaction();
             try {
                 $job = $this->execute("SELECT * FROM {$this->table} WHERE job_id = ? FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
@@ -339,9 +339,12 @@ class MySqlDriver extends AbstractDriver
         );
     }
 
-    protected function selectJob(): string
+    protected function selectJob(?int $limit = null): string
     {
-        return "SELECT job_id FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC, job_id ASC FOR UPDATE SKIP LOCKED";
+        if ($limit !== null) {
+            $limit = "LIMIT $limit";
+        }
+        return "SELECT job_id FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC, job_id ASC $limit FOR UPDATE SKIP LOCKED";
     }
 
     protected function execute(string $query, array $bind = [])
