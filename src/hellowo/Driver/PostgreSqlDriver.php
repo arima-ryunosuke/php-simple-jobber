@@ -34,6 +34,7 @@ class PostgreSqlDriver extends AbstractDriver
     private        $connection;
     private string $table;
 
+    private ?float $starttime;
     private float  $waittime;
     private string $waitmode;
 
@@ -53,6 +54,8 @@ class PostgreSqlDriver extends AbstractDriver
             // db and table
             'database'  => null,
             'table'     => 'hellowo',
+            // null: wait waittime simply, int: wait until starttime+waittime
+            'starttime' => null,
             // one cycle wait time
             'waittime'  => 10.0,
             // sql: use SELECT SLEEP(), php: call usleep
@@ -84,8 +87,9 @@ class PostgreSqlDriver extends AbstractDriver
         $this->connection = $transport;
         $this->table      = $options['table'];
 
-        $this->waittime = $options['waittime'];
-        $this->waitmode = $options['waitmode'];
+        $this->starttime = $options['starttime'];
+        $this->waittime  = $options['waittime'];
+        $this->waitmode  = $options['waitmode'];
 
         $this->heartbeat      = $options['heartbeat'];
         $this->heartbeatTimer = microtime(true) + $this->heartbeat;
@@ -233,7 +237,7 @@ class PostgreSqlDriver extends AbstractDriver
             fclose($socket);
         }
         elseif ($this->waitmode === 'php') {
-            usleep($this->waittime * 1000 * 1000);
+            usleep(intval($this->waitTime($this->starttime, $this->waittime) * 1000 * 1000));
         }
     }
 

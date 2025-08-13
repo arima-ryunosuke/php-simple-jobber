@@ -149,4 +149,19 @@ class AbstractDriverTest extends AbstractTestCase
             $driver->notify(true)->is(1);
         }
     }
+
+    function test_waitTime()
+    {
+        $driver = that(new class ( "" ) extends AbstractDriver { });
+
+        $driver->waitTime(null, 7.89)->isSame(7.89);
+        $driver->waitTime(strtotime('2014-12-24 00:00:00') + .123, 7.89)->lt(7.89);
+
+        $driver->waitTime(strtotime('2014-12-24 00:00:00'), 5.0, strtotime('2014-12-24 12:00:00'))->closesTo(0.0);
+        $driver->waitTime(strtotime('2014-12-24 00:00:00'), 5.0, strtotime('2014-12-24 12:00:01'))->closesTo(4.0);
+        $driver->waitTime(strtotime('2014-12-24 00:00:00'), 5.0, strtotime('2014-12-24 12:00:02'))->closesTo(3.0);
+        $driver->waitTime(strtotime('2014-12-24 00:00:00'), 5.0, strtotime('2014-12-24 12:00:03'))->closesTo(2.0);
+        $driver->waitTime(strtotime('2014-12-24 00:00:00'), 5.0, strtotime('2014-12-24 12:00:04'))->closesTo(1.0);
+        $driver->waitTime(strtotime('2014-12-24 00:00:00'), 5.0, strtotime('2014-12-24 12:00:05'))->closesTo(0.0);
+    }
 }

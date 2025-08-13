@@ -37,6 +37,7 @@ class MySqlDriver extends AbstractDriver
     private mysqli $connection;
     private string $table;
 
+    private ?float $starttime;
     private float  $waittime;
     private string $waitmode;
     private bool   $trigger;
@@ -59,6 +60,8 @@ class MySqlDriver extends AbstractDriver
             // db and table
             'database'  => null,
             'table'     => 'hellowo',
+            // null: wait waittime simply, int: wait until starttime+waittime
+            'starttime' => null,
             // one cycle wait time
             'waittime'  => 10.0,
             // sql: use SELECT SLEEP(), php: call usleep
@@ -85,9 +88,10 @@ class MySqlDriver extends AbstractDriver
         $this->connection = $transport;
         $this->table      = $options['table'];
 
-        $this->waittime = $options['waittime'];
-        $this->waitmode = $options['waitmode'];
-        $this->trigger  = $options['trigger'] && $options['waitmode'] === 'sql';
+        $this->starttime = $options['starttime'];
+        $this->waittime  = $options['waittime'];
+        $this->waitmode  = $options['waitmode'];
+        $this->trigger   = $options['trigger'] && $options['waitmode'] === 'sql';
 
         $this->heartbeat      = $options['heartbeat'];
         $this->heartbeatTimer = microtime(true) + $this->heartbeat;
@@ -270,11 +274,13 @@ class MySqlDriver extends AbstractDriver
 
     protected function sleep(): void
     {
+        $waittime = $this->waitTime($this->starttime, $this->waittime);
+
         if ($this->waitmode === 'sql') {
             // combination technique async select sleep and select syscall
             // - select sleep:   able to kill, but unable to receive signal
             // - select syscall: unable to kill, but able to receive signal
-            $this->connection->query("/*by {$this->table}*/ SELECT IF(EXISTS({$this->selectJob()}), 1, SLEEP({$this->waittime})) AS c", MYSQLI_ASYNC);
+            $this->connection->query("/*by {$this->table}*/ SELECT IF(EXISTS({$this->selectJob()}), 1, SLEEP({$waittime})) AS c", MYSQLI_ASYNC);
 
             do {
                 $read = $error = $reject = [$this->connection];
@@ -304,7 +310,7 @@ class MySqlDriver extends AbstractDriver
             } while (!$read);
         }
         elseif ($this->waitmode === 'php') {
-            usleep($this->waittime * 1000 * 1000);
+            usleep(intval($waittime * 1000 * 1000));
         }
     }
 

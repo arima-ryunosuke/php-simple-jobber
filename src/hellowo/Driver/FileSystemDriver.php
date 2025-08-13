@@ -35,6 +35,7 @@ class FileSystemDriver extends AbstractDriver
     private string $extension;
     private string $working;
 
+    private ?float $starttime;
     private float  $waittime;
     private string $waitmode;
     private int    $ttr;
@@ -48,6 +49,8 @@ class FileSystemDriver extends AbstractDriver
             // watching directory and extension
             'directory' => '',
             'extension' => 'job',
+            // null: wait waittime simply, int: wait until starttime+waittime
+            'starttime' => null,
             // one cycle wait time
             'waittime'  => 10.0,
             // inotify: use inotify, php: call usleep
@@ -63,9 +66,10 @@ class FileSystemDriver extends AbstractDriver
         $this->extension = $options['extension'];
         $this->working   = "$this->directory/.working";
 
-        $this->waittime = $options['waittime'];
-        $this->waitmode = $options['waitmode'];
-        $this->ttr      = $options['ttr'];
+        $this->starttime = $options['starttime'];
+        $this->waittime  = $options['waittime'];
+        $this->waitmode  = $options['waitmode'];
+        $this->ttr       = $options['ttr'];
 
         parent::__construct("filesystem {$options['directory']}/*.{$options['extension']}");
     }
@@ -204,7 +208,7 @@ class FileSystemDriver extends AbstractDriver
             }
         }
         elseif ($this->waitmode === 'php') {
-            usleep($this->waittime * 1000 * 1000);
+            usleep(intval($this->waitTime($this->starttime, $this->waittime) * 1000 * 1000));
         }
     }
 

@@ -191,6 +191,20 @@ abstract class AbstractDriver extends API
         posix::proc_cmdline(posix::proc_cmdline() . '#hellowo');
     }
 
+    protected function waitTime(?float $starttime, float $waittime, ?float $now = null): float
+    {
+        if ($starttime === null) {
+            return $waittime;
+        }
+
+        $now  ??= microtime(true);
+        $span = $now - $starttime;
+        $tick = ceil($span / $waittime);
+        $next = $starttime + $tick * $waittime;
+
+        return $next - $now;
+    }
+
     /**
      * ping to host
      *
