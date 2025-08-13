@@ -208,7 +208,7 @@ class WorkerTest extends AbstractTestCase
                 return new Message($count, $count, 0);
             }, null, function () {
                 static $counter = 0;
-                return $counter++ < 2;
+                return $counter++ < 3;
             }),
             'logger'   => new ArrayLogger($logs),
             'listener' => new ArrayListener($events),

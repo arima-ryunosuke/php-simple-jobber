@@ -97,7 +97,7 @@ class Worker extends API
         // main loop
         $start   = microtime(true);
         $cycle   = 0;
-        $stoodby = false;
+        $stoodby = $this->driver->isStandby();
         $this->logger->info("[$mypid]begin: {$this->logString($cycle)}");
         while ($running) {
             try {
@@ -107,8 +107,7 @@ class Worker extends API
                 }
 
                 // check standby(e.g. filesystem:unmount, mysql:replication, etc)
-                if ($this->driver->isStandby()) {
-                    $stoodby = true;
+                if ($stoodby && $this->driver->isStandby()) {
                     $this->logger->info("[$mypid]sleep: {$this->logString($cycle)}");
                     usleep(10 * 1000 * 1000);
                     continue;
