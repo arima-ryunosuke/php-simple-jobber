@@ -87,9 +87,10 @@ $worker = new ryunosuke\hellowo\Worker([
         file_put_contents('/var/log/hellowo/receive.log', "$message\n", FILE_APPEND | LOCK_EX);
     },
     'driver' => new ryunosuke\hellowo\Driver\MySqlDriver([
+        'starttime' => strtotime('2000-01-01 00:00:00') + getenv('SYSTEMD_SERVICE_ID') * 4,
         'waittime'  => 30.0,
-        'waitmode' => 'sql',
-        'mysql'      => [
+        'waitmode'  => 'sql',
+        'transport' => [
             'host'     => '127.0.0.1',
             'user'     => 'root',
             'password' => 'password',
@@ -113,6 +114,7 @@ PartOf=example.target
 
 [Service]
 Type=simple
+Environment=SYSTEMD_SERVICE_ID=%i
 ExecStartPre=/bin/mkdir -p /var/log/hellowo
 ExecStart=/bin/sh -c 'exec /usr/bin/php $RUNSCRIPT 1>/var/log/hellowo/stdout-%i.log 2>/var/log/hellowo/stderr-%i.log'
 TimeoutStopSec=90s
@@ -181,6 +183,14 @@ Versioning is romantic versioning(no semantic versioning).
 - major: large BC break. e.g. change architecture, package, class etc
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
+
+### 1.1.8
+
+- [feature] EchoLogger にレベルフィルタを実装
+- [feature] ジョブ候補をファイルキャッシュする機能
+- [feature] ジョブを分散させるために starttime を追加
+- [fixbug] 無駄な行を取りすぎている
+- [fixbug] active 側で isStandby が高頻度で呼ばれている
 
 ### 1.1.7
 
