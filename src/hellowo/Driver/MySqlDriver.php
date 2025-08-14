@@ -37,10 +37,11 @@ class MySqlDriver extends AbstractDriver
     private mysqli $connection;
     private string $table;
 
-    private ?float $starttime;
-    private float  $waittime;
-    private string $waitmode;
-    private bool   $trigger;
+    private ?float  $starttime;
+    private float   $waittime;
+    private string  $waitmode;
+    private bool    $trigger;
+    private ?string $sharedFile;
 
     private int   $heartbeat;
     private float $heartbeatTimer;
@@ -51,25 +52,27 @@ class MySqlDriver extends AbstractDriver
     {
         $options = self::normalizeOptions($options, [
             // mysqli instance or mysqli DSN
-            'transport' => [
+            'transport'  => [
                 'host'     => '127.0.0.1',
                 'port'     => 3306,
                 'username' => null,
                 'password' => null,
             ],
             // db and table
-            'database'  => null,
-            'table'     => 'hellowo',
+            'database'   => null,
+            'table'      => 'hellowo',
             // null: wait waittime simply, int: wait until starttime+waittime
-            'starttime' => null,
+            'starttime'  => null,
             // one cycle wait time
-            'waittime'  => 10.0,
+            'waittime'   => 10.0,
             // sql: use SELECT SLEEP(), php: call usleep
-            'waitmode'  => 'sql',
+            'waitmode'   => 'sql',
+            // sharing job filename
+            'sharedFile' => null,
             // create awake trigger after insert (sql mode only)
-            'trigger'   => true,
+            'trigger'    => true,
             // kills sleeping connections of different hosts for sudden death. requires PROCESS privileges
-            'heartbeat' => 0,
+            'heartbeat'  => 0,
         ]);
 
         // connection
@@ -88,10 +91,11 @@ class MySqlDriver extends AbstractDriver
         $this->connection = $transport;
         $this->table      = $options['table'];
 
-        $this->starttime = $options['starttime'];
-        $this->waittime  = $options['waittime'];
-        $this->waitmode  = $options['waitmode'];
-        $this->trigger   = $options['trigger'] && $options['waitmode'] === 'sql';
+        $this->starttime  = $options['starttime'];
+        $this->waittime   = $options['waittime'];
+        $this->waitmode   = $options['waitmode'];
+        $this->trigger    = $options['trigger'] && $options['waitmode'] === 'sql';
+        $this->sharedFile = $options['sharedFile'];
 
         $this->heartbeat      = $options['heartbeat'];
         $this->heartbeatTimer = microtime(true) + $this->heartbeat;
@@ -178,6 +182,10 @@ class MySqlDriver extends AbstractDriver
                 }
             }
         }
+
+        if ($this->sharedFile !== null) {
+            @mkdir(dirname($this->sharedFile), 0755, true);
+        }
     }
 
     protected function isStandby(): bool
@@ -197,12 +205,15 @@ class MySqlDriver extends AbstractDriver
 
     protected function select(): Generator
     {
-        foreach ($this->execute($this->selectJob(256)) as ['job_id' => $job_id]) {
+        $jobs = $this->shareJob($this->sharedFile, $this->waittime, fn() => array_column($this->execute($this->selectJob(['job_id', 'priority'], 256)), null, 'job_id'));
+
+        foreach ($jobs as $job_id => $job) {
             $this->connection->begin_transaction();
             try {
                 $job = $this->execute("SELECT * FROM {$this->table} WHERE job_id = ? FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
 
                 if ($job === null) {
+                    $this->unshareJob($this->sharedFile, $job_id);
                     $this->connection->rollback();
                     continue;
                 }
@@ -215,6 +226,7 @@ class MySqlDriver extends AbstractDriver
                 else {
                     $this->execute("UPDATE {$this->table} SET start_at = NOW(3) + INTERVAL ? SECOND, retry = ? WHERE job_id = ?", [$retry, $job['retry'] + 1, $job['job_id']]);
                 }
+                $this->unshareJob($this->sharedFile, $job_id);
                 $this->connection->commit();
                 return;
             }
@@ -345,12 +357,15 @@ class MySqlDriver extends AbstractDriver
         );
     }
 
-    protected function selectJob(?int $limit = null): string
+    protected function selectJob(array $column = ['*'], ?int $limit = null): string
     {
+        $column = implode(', ', $column);
+
         if ($limit !== null) {
             $limit = "LIMIT $limit";
         }
-        return "SELECT job_id FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC, job_id ASC $limit FOR UPDATE SKIP LOCKED";
+
+        return "SELECT $column FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC, job_id ASC $limit FOR UPDATE SKIP LOCKED";
     }
 
     protected function execute(string $query, array $bind = [])

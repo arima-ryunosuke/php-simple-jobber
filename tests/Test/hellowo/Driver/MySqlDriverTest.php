@@ -148,6 +148,49 @@ class MySqlDriverTest extends AbstractTestCase
         }
     }
 
+    function test_select_sharedFile()
+    {
+        srand(2);
+        $sharedFile = sys_get_temp_dir() . '/jobs.txt';
+        @unlink($sharedFile);
+
+        $driver = that(AbstractDriver::create(MYSQL_URL, [
+            'waittime'   => 1,
+            'waitmode'   => 'php',
+            'sharedFile' => $sharedFile,
+        ]));
+        $driver->setup(true);
+
+        $driver->send('A');
+        $driver->send('B');
+        $driver->send('C');
+
+        $generator = $driver->select();
+        $message   = $generator->current();
+        $message->getContents()->is('A');
+        $generator->send(null);
+        unset($generator);
+
+        $cache = include $sharedFile;
+        that($cache['jobs'])->isSame([
+            2 => [
+                "job_id"   => 2,
+                "priority" => 32767,
+            ],
+            3 => [
+                "job_id"   => 3,
+                "priority" => 32767,
+            ],
+        ]);
+
+        $cache['jobs'] = array_replace([-1 => ["id" => -1, "priority" => 32767]], $cache['jobs']);
+        file_put_contents($sharedFile, '<?php return ' . var_export($cache, true) . ';');
+
+        $driver->select()->current()->getContents()->isSame('B');
+
+        $driver->close();
+    }
+
     function test_sleep_sql()
     {
         $driver = that(AbstractDriver::create(MYSQL_URL, [

@@ -34,9 +34,10 @@ class PostgreSqlDriver extends AbstractDriver
     private        $connection;
     private string $table;
 
-    private ?float $starttime;
-    private float  $waittime;
-    private string $waitmode;
+    private ?float  $starttime;
+    private float   $waittime;
+    private string  $waitmode;
+    private ?string $sharedFile;
 
     private int   $heartbeat;
     private float $heartbeatTimer;
@@ -45,23 +46,25 @@ class PostgreSqlDriver extends AbstractDriver
     {
         $options = self::normalizeOptions($options, [
             // pgsql instance or pgsql DSN
-            'transport' => [
+            'transport'  => [
                 'host'     => '127.0.0.1',
                 'port'     => 3306,
                 'username' => null,
                 'password' => null,
             ],
             // db and table
-            'database'  => null,
-            'table'     => 'hellowo',
+            'database'   => null,
+            'table'      => 'hellowo',
             // null: wait waittime simply, int: wait until starttime+waittime
-            'starttime' => null,
+            'starttime'  => null,
             // one cycle wait time
-            'waittime'  => 10.0,
+            'waittime'   => 10.0,
             // sql: use SELECT SLEEP(), php: call usleep
-            'waitmode'  => 'sql',
+            'waitmode'   => 'sql',
+            // sharing job filename
+            'sharedFile' => null,
             // kills sleeping connections of different hosts for sudden death. requires PROCESS privileges
-            'heartbeat' => 0,
+            'heartbeat'  => 0,
         ]);
 
         // connection
@@ -87,9 +90,10 @@ class PostgreSqlDriver extends AbstractDriver
         $this->connection = $transport;
         $this->table      = $options['table'];
 
-        $this->starttime = $options['starttime'];
-        $this->waittime  = $options['waittime'];
-        $this->waitmode  = $options['waitmode'];
+        $this->starttime  = $options['starttime'];
+        $this->waittime   = $options['waittime'];
+        $this->waitmode   = $options['waitmode'];
+        $this->sharedFile = $options['sharedFile'];
 
         $this->heartbeat      = $options['heartbeat'];
         $this->heartbeatTimer = microtime(true) + $this->heartbeat;
@@ -119,6 +123,10 @@ class PostgreSqlDriver extends AbstractDriver
         if ($this->waitmode === 'sql') {
             pg_query($this->connection, 'LISTEN hellowo_awake');
         }
+
+        if ($this->sharedFile !== null) {
+            @mkdir(dirname($this->sharedFile), 0755, true);
+        }
     }
 
     protected function isStandby(): bool
@@ -147,11 +155,19 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function select(): Generator
     {
-        $this->execute('BEGIN');
-        try {
-            $job = $this->execute("SELECT * FROM {$this->table} WHERE start_at <= NOW() ORDER BY priority DESC LIMIT 1 FOR UPDATE SKIP LOCKED")[0] ?? null;
+        $jobs = $this->shareJob($this->sharedFile, $this->waittime, fn() => array_column($this->execute("SELECT job_id, priority FROM {$this->table} WHERE start_at <= NOW() ORDER BY priority DESC LIMIT 256 FOR UPDATE SKIP LOCKED"), null, 'job_id'));
 
-            if ($job) {
+        foreach ($jobs as $job_id => $job) {
+            $this->execute('BEGIN');
+            try {
+                $job = $this->execute("SELECT * FROM {$this->table} WHERE job_id = $1 FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
+
+                if ($job === null) {
+                    $this->unshareJob($this->sharedFile, $job_id);
+                    $this->execute('ROLLBACK');
+                    continue;
+                }
+
                 $job['retry'] ??= 0; // for compatible
                 $retry        = yield new Message($job['job_id'], pg_unescape_bytea($job['message']), $job['retry']);
                 if ($retry === null) {
@@ -160,15 +176,14 @@ class PostgreSqlDriver extends AbstractDriver
                 else {
                     $this->execute("UPDATE {$this->table} SET start_at = NOW() + $1, retry = $2 WHERE job_id = $3", ["$retry SECOND", $job['retry'] + 1, $job['job_id']]);
                 }
-            }
-            $this->execute('COMMIT');
-            if ($job) {
+                $this->unshareJob($this->sharedFile, $job_id);
+                $this->execute('COMMIT');
                 return;
             }
-        }
-        catch (Throwable $ex) {
-            $this->execute('ROLLBACK');
-            throw $ex;
+            catch (Throwable $ex) {
+                $this->execute('ROLLBACK');
+                throw $ex;
+            }
         }
 
         $this->sleep();

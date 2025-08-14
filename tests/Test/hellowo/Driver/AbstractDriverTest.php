@@ -150,6 +150,43 @@ class AbstractDriverTest extends AbstractTestCase
         }
     }
 
+    function test_shareJob()
+    {
+        $jobFilename = sys_get_temp_dir() . '/jobs.txt';
+        @unlink($jobFilename);
+
+        $driver = that(new class ( "" ) extends AbstractDriver { });
+
+        $driver->shareJob($jobFilename, 2, fn() => [1 => ['id' => 1]], 123)->isSame([1 => ['id' => 1]]); // first
+        $driver->shareJob($jobFilename, 2, fn() => [2 => ['id' => 2]], 124)->isSame([1 => ['id' => 1]]); // within expiration
+        $driver->shareJob($jobFilename, 2, fn() => [3 => ['id' => 3]], 125)->isSame([3 => ['id' => 3]]); // expired
+
+        $driver->shareJob($jobFilename, 2, fn() => [1 => ['id' => 1], 2 => ['id' => 2]], 127)->isSame([1 => ['id' => 1], 2 => ['id' => 2]]);
+        $driver->unshareJob($jobFilename, 1)->isSame(['id' => 1]);
+        $driver->shareJob($jobFilename, 2, fn() => [3 => ['id' => 3]], 127)->isSame([2 => ['id' => 2]]); // not return id:1
+
+        $driver->shareJob($jobFilename, 2, fn() => [1 => ['id' => 1, 'priority' => 1], 2 => ['id' => 2, 'priority' => 2]], 130)->isSame([
+            1 => [
+                "id"       => 1,
+                "priority" => 1,
+            ],
+            2 => [
+                "id"       => 2,
+                "priority" => 2,
+            ],
+        ]);
+        $driver->shareJob($jobFilename, 2, fn() => [], 131)->isSame([
+            2 => [
+                "id"       => 2,
+                "priority" => 2,
+            ],
+            1 => [
+                "id"       => 1,
+                "priority" => 1,
+            ],
+        ]);
+    }
+
     function test_waitTime()
     {
         $driver = that(new class ( "" ) extends AbstractDriver { });

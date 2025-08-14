@@ -49,7 +49,7 @@ do
         break 2
     fi
   done
-  sleep 0.2
+  sleep 1
 done
 
 # print stat

@@ -22,8 +22,9 @@ $driver = (function (string $url) {
     }
 
     return AbstractDriver::create($url, [
-        'waittime' => 0.5,
-        'waitmode' => 'php',
+        'waittime'   => 0.5,
+        'waitmode'   => 'php',
+        'sharedFile' => sys_get_temp_dir() . '/jobs.txt',
     ]);
 })($argv[1] ?? '');
 
@@ -65,4 +66,4 @@ $driver = (function (string $url) {
             $worker->start();
             return;
     }
-})($driver, $argv[2] ?? '', $argv[3] ?? '', ($argv[4] ?? '') ?: null, ($argv[5] ?? '') ?: null);
+})($driver, $argv[2] ?? '', $argv[3] ?? '', strlen($argv[4] ?? '') ? $argv[4] : null, strlen($argv[5] ?? '') ? $argv[5] : null);

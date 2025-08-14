@@ -3,6 +3,7 @@
 namespace ryunosuke\hellowo\Driver;
 
 use ReflectionMethod;
+use RuntimeException;
 use ryunosuke\hellowo\API;
 use ryunosuke\hellowo\ext\posix;
 
@@ -189,6 +190,79 @@ abstract class AbstractDriver extends API
     protected function daemonize(): void
     {
         posix::proc_cmdline(posix::proc_cmdline() . '#hellowo');
+    }
+
+    protected function shareJob(?string $sharedFile, float $waittime, callable $select, ?float $now = null): array
+    {
+        if ($sharedFile === null) {
+            return $select();
+        }
+
+        $now ??= microtime(true);
+        try {
+            $fp = fopen($sharedFile, 'c+');
+            if (!flock($fp, LOCK_EX)) {
+                throw new RuntimeException('failed to lock file'); // @codeCoverageIgnore
+            }
+
+            // windows's flock is mandatory lock
+            $cache = DIRECTORY_SEPARATOR === '/' ? include $sharedFile : eval(substr(stream_get_contents($fp), 5));
+            $last  = $cache['last'] ?? 0;
+            $jobs  = $cache['jobs'] ?? [];
+
+            // return cache if within expiration
+            if (($now - $last) < $waittime) {
+                // randomize jobs for stuck
+                uasort($jobs, fn($a, $b) => -(($a['priority'] ?? null) <=> ($b['priority'] ?? null)) ?: rand(-1, 1));
+                return $jobs;
+            }
+
+            fseek($fp, 0);
+            ftruncate($fp, 0);
+            fwrite($fp, sprintf('<?php return %s;', var_export([
+                'last' => $now,
+                'jobs' => $jobs = $select(),
+            ], true)));
+            fflush($fp);
+            opcache_invalidate($sharedFile, true);
+
+            return $jobs;
+        }
+        finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
+    }
+
+    protected function unshareJob(?string $sharedFile, string $job_id): ?array
+    {
+        if ($sharedFile === null) {
+            return null;
+        }
+
+        try {
+            $fp = fopen($sharedFile, 'c+');
+            if (!flock($fp, LOCK_EX)) {
+                throw new RuntimeException('failed to lock file'); // @codeCoverageIgnore
+            }
+
+            // windows's flock is mandatory lock
+            $cache  = DIRECTORY_SEPARATOR === '/' ? include $sharedFile : eval(substr(stream_get_contents($fp), 5));
+            $result = $cache['jobs'][$job_id] ?? null;
+            unset($cache['jobs'][$job_id]);
+
+            fseek($fp, 0);
+            ftruncate($fp, 0);
+            fwrite($fp, sprintf('<?php return %s;', var_export($cache, true)));
+            fflush($fp);
+            opcache_invalidate($sharedFile, true);
+
+            return $result;
+        }
+        finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
     }
 
     protected function waitTime(?float $starttime, float $waittime, ?float $now = null): float
