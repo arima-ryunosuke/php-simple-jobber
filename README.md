@@ -184,6 +184,12 @@ Versioning is romantic versioning(no semantic versioning).
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
 
+### 1.1.9
+
+- [feature] prepare は1回で十分
+- [fixbug] systemd で起動しない不具合
+- [fixbug] EchoLogger の引数漏れ
+
 ### 1.1.8
 
 - [feature] EchoLogger にレベルフィルタを実装
