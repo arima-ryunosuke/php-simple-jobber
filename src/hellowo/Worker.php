@@ -6,6 +6,7 @@ use Closure;
 use Exception;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\hellowo\Exception\ExitException;
 use ryunosuke\hellowo\Exception\RetryableException;
@@ -51,7 +52,7 @@ class Worker extends API
         }
 
         $this->driver   = $options['driver'];
-        $this->logger   = $options['logger'] ?? new EchoLogger();
+        $this->logger   = $options['logger'] ?? new EchoLogger(LogLevel::DEBUG);
         $this->listener = $options['listener'] ?? new NullListener();
         $this->signals  = ($options['signals'] ?? []) + self::HANDLING_SIGNALS;
         $this->timeout  = $options['timeout'] ?? 0;
