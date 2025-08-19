@@ -261,6 +261,7 @@ class PostgreSqlDriverTest extends AbstractTestCase
         $driver->execute("INSERT INTO testjobs(message) VALUES('test')")->is(1);
         $driver->execute("SELECT * FROM testjobs")->count(1);
 
+        @$driver->execute('INVALID')->wasThrown('near "INVALID"');
         @$driver->execute('SELECT $1')->wasThrown('0 parameters');
     }
 }

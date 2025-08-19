@@ -42,6 +42,8 @@ class PostgreSqlDriver extends AbstractDriver
     private int   $heartbeat;
     private float $heartbeatTimer;
 
+    private array $statements = [];
+
     public function __construct(array $options)
     {
         $options = self::normalizeOptions($options, [
@@ -288,7 +290,13 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function execute(string $query, array $bind = [])
     {
-        $result = pg_query_params($this->connection, $query, $bind);
+        $stmtname  = sha1($query);
+        $statement = $this->statements[$query] ??= pg_prepare($this->connection, $stmtname, $query);
+        if ($statement === false) {
+            throw new RuntimeException(pg_last_error($this->connection));
+        }
+
+        $result = pg_execute($this->connection, $stmtname, $bind);
         if ($result === false) {
             throw new RuntimeException(pg_last_error($this->connection));
         }

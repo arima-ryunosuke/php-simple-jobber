@@ -46,7 +46,8 @@ class MySqlDriver extends AbstractDriver
     private int   $heartbeat;
     private float $heartbeatTimer;
 
-    private bool $syscalled = false;
+    private bool  $syscalled  = false;
+    private array $statements = [];
 
     public function __construct(array $options)
     {
@@ -379,7 +380,7 @@ class MySqlDriver extends AbstractDriver
             $this->connection->reap_async_query();
         }
 
-        $statement = $this->connection->prepare($query);
+        $statement = $this->statements[$query] ??= $this->connection->prepare($query);
         if ($bind) {
             $statement->bind_param(str_repeat('s', count($bind)), ...array_values($bind));
         }
