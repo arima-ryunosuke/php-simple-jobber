@@ -205,8 +205,7 @@ abstract class AbstractDriver extends API
                 throw new RuntimeException('failed to lock file'); // @codeCoverageIgnore
             }
 
-            // windows's flock is mandatory lock
-            $cache = DIRECTORY_SEPARATOR === '/' ? include $sharedFile : eval(substr(stream_get_contents($fp), 5));
+            $cache = json_decode(stream_get_contents($fp), true);
             $last  = $cache['last'] ?? 0;
             $jobs  = $cache['jobs'] ?? [];
 
@@ -219,12 +218,11 @@ abstract class AbstractDriver extends API
 
             fseek($fp, 0);
             ftruncate($fp, 0);
-            fwrite($fp, sprintf('<?php return %s;', var_export([
+            fwrite($fp, json_encode([
                 'last' => $now,
                 'jobs' => $jobs = $select(),
-            ], true)));
+            ]));
             fflush($fp);
-            opcache_invalidate($sharedFile, true);
 
             return $jobs;
         }
@@ -246,16 +244,14 @@ abstract class AbstractDriver extends API
                 throw new RuntimeException('failed to lock file'); // @codeCoverageIgnore
             }
 
-            // windows's flock is mandatory lock
-            $cache  = DIRECTORY_SEPARATOR === '/' ? include $sharedFile : eval(substr(stream_get_contents($fp), 5));
+            $cache = json_decode(stream_get_contents($fp), true);
             $result = $cache['jobs'][$job_id] ?? null;
             unset($cache['jobs'][$job_id]);
 
             fseek($fp, 0);
             ftruncate($fp, 0);
-            fwrite($fp, sprintf('<?php return %s;', var_export($cache, true)));
+            fwrite($fp, json_encode($cache));
             fflush($fp);
-            opcache_invalidate($sharedFile, true);
 
             return $result;
         }

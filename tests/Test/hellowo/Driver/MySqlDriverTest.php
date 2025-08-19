@@ -171,7 +171,7 @@ class MySqlDriverTest extends AbstractTestCase
         $generator->send(null);
         unset($generator);
 
-        $cache = include $sharedFile;
+        $cache = json_decode(file_get_contents($sharedFile), true);
         that($cache['jobs'])->isSame([
             2 => [
                 "job_id"   => 2,
@@ -184,7 +184,7 @@ class MySqlDriverTest extends AbstractTestCase
         ]);
 
         $cache['jobs'] = array_replace([-1 => ["id" => -1, "priority" => 32767]], $cache['jobs']);
-        file_put_contents($sharedFile, '<?php return ' . var_export($cache, true) . ';');
+        file_put_contents($sharedFile, json_encode($cache));
 
         $driver->select()->current()->getContents()->isSame('B');
 
