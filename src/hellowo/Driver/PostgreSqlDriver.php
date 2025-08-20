@@ -290,11 +290,14 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function execute(string $query, array $bind = [])
     {
-        $stmtname  = sha1($query);
-        $statement = $this->statements[$query] ??= pg_prepare($this->connection, $stmtname, $query);
-        if ($statement === false) {
-            throw new RuntimeException(pg_last_error($this->connection));
-        }
+        $stmtname = $this->statements[$query] ??= (function () use ($query) {
+            $stmtname  = 'hellowostmt' . count($this->statements);
+            $statement = pg_prepare($this->connection, $stmtname, $query);
+            if ($statement === false) {
+                throw new RuntimeException(pg_last_error($this->connection));
+            }
+            return $stmtname;
+        })();
 
         $result = pg_execute($this->connection, $stmtname, $bind);
         if ($result === false) {
