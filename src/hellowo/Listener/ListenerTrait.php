@@ -17,5 +17,7 @@ trait ListenerTrait
 
     public function onTimeout(Message $message, Throwable $t): void { }
 
+    public function onBreather(int $cycle): void { }
+
     public function onCycle(int $cycle): void { }
 }

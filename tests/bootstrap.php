@@ -20,7 +20,7 @@ function that($value)
     return new \ryunosuke\PHPUnit\Actual($value);
 }
 
-Actual::$functionNamespaces = [];
+Actual::$functionNamespaces                = [];
 Actual::$configuration['errorAsException'] = true;
 
 if (false) {
@@ -80,6 +80,11 @@ class ArrayListener extends AbstractListener
     public function onTimeout(Message $message, Throwable $t): void
     {
         $this->events['timeout'][] = $message->getId();
+    }
+
+    public function onBreather(int $cycle): void
+    {
+        $this->events['breather'][] = $cycle;
     }
 
     public function onCycle(int $cycle): void

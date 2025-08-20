@@ -150,22 +150,24 @@ class WorkerTest extends AbstractTestCase
         that($stdout)->fileEquals("45");
 
         that($logs)->matchesCountEquals([
-            '#^\\[\\d+\\]start:#'   => 1,
-            '#^\\[\\d+\\]begin:#'   => 1,
-            '#^\\[\\d+\\]job:#'     => null,
-            '#^\\[\\d+\\]done:#'    => null,
-            '#^\\[\\d+\\]fail:#'    => 1,
-            '#^\\[\\d+\\]timeout:#' => 1,
-            '#^\\[\\d+\\]retry:#'   => 3,
-            '#^\\[\\d+\\]end:#'     => 1,
+            '#^\\[\\d+\\]breather:#' => 1,
+            '#^\\[\\d+\\]start:#'    => 1,
+            '#^\\[\\d+\\]begin:#'    => 1,
+            '#^\\[\\d+\\]job:#'      => null,
+            '#^\\[\\d+\\]done:#'     => null,
+            '#^\\[\\d+\\]fail:#'     => 1,
+            '#^\\[\\d+\\]timeout:#'  => 1,
+            '#^\\[\\d+\\]retry:#'    => 3,
+            '#^\\[\\d+\\]end:#'      => 1,
         ]);
 
-        that($events)->is([
-            "fail"    => ["2"],
-            "timeout" => ["3"],
-            "retry"   => ["4", "4", "4"],
-            "done"    => ["4", "5"],
-            "cycle"   => [0, 1, 2, 3, 4, 5, 6, 7],
+        that($events)->isSame([
+            "breather" => [0],
+            "cycle"    => [0, 1, 2, 3, 4, 5, 6, 7],
+            "fail"     => ["2"],
+            "timeout"  => ["3"],
+            "retry"    => ["4", "4", "4"],
+            "done"     => ["4", "5"],
         ]);
     }
 

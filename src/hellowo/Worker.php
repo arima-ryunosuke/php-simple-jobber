@@ -123,7 +123,11 @@ class Worker extends API
                 $generator = $this->driver->select();
                 try {
                     $message = $generator->current();
-                    if ($message !== null) {
+                    if ($message === null) {
+                        $this->logger->debug("[$mypid]breather: {$this->logString($cycle)}");
+                        $this->listener->onBreather($cycle);
+                    }
+                    else {
                         $this->logger->info("[$mypid]job: {$this->logString($message->getId())}");
 
                         try {
