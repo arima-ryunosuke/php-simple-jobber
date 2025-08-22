@@ -2,8 +2,12 @@
 
 namespace ryunosuke\hellowo\Exception;
 
-class TimeoutException extends AbstractException
+use RuntimeException;
+
+class TimeoutException extends RuntimeException
 {
+    use ExceptionTrait;
+
     public function getElapsed(float $start): float
     {
         return microtime(true) - $start;

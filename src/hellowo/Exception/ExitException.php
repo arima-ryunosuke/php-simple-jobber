@@ -2,8 +2,12 @@
 
 namespace ryunosuke\hellowo\Exception;
 
-class ExitException extends AbstractException
+use RuntimeException;
+
+class ExitException extends RuntimeException
 {
+    use ExceptionTrait;
+
     public function exit(): void
     {
         // for unittesting

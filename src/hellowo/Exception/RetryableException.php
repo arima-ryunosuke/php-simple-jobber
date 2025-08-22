@@ -2,10 +2,13 @@
 
 namespace ryunosuke\hellowo\Exception;
 
+use RuntimeException;
 use Throwable;
 
-class RetryableException extends AbstractException
+class RetryableException extends RuntimeException
 {
+    use ExceptionTrait;
+
     private float $second;
 
     public function __construct(float $second, string $message = "", int $code = 0, Throwable $previous = null)
