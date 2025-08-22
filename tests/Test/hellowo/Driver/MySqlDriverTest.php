@@ -2,7 +2,6 @@
 
 namespace ryunosuke\Test\hellowo\Driver;
 
-use Exception;
 use mysqli;
 use mysqli_sql_exception;
 use ryunosuke\hellowo\Driver\AbstractDriver;
@@ -11,6 +10,14 @@ use ryunosuke\Test\AbstractTestCase;
 
 class MySqlDriverTest extends AbstractTestCase
 {
+    use Traits\CancelTrait;
+    use Traits\LifecycleTrait;
+    use Traits\ShareJobTrait;
+    use Traits\SleepTrait;
+    use Traits\TransactionTrait;
+
+    const DRIVER_URL = MYSQL_URL;
+
     protected function setUp(): void
     {
         if (!defined('MYSQL_URL') || !MySqlDriver::isEnabled()) {
@@ -23,102 +30,14 @@ class MySqlDriverTest extends AbstractTestCase
         @that(MySqlDriver::class)->new(['host' => '0.0.0.0', 'port' => 9999])->wasThrown(/* difference php7/8 */);
     }
 
-    function test_all()
+    function test_lifecycle()
     {
-        $driver = that(AbstractDriver::create(MYSQL_URL, [
-            'waittime' => 1,
-            'waitmode' => 'php',
-        ]));
-        $driver->setup(true);
-        $driver->daemonize();
-
-        $driver->clear();
-        $driver->send('Z1', 1);
-        $driver->send('Z2', 1);
-        $driver->clear()->is(2);
-
-        $driver->send('B', 1);
-        $driver->send('A', 2);
-        $driver->send('X', null, 10);
-
-        $generator = $driver->select();
-        $message   = $generator->current();
-        $message->getId()->isNumeric();
-        $message->getContents()->is('A');
-        $generator->send(null);
-
-        $generator = $driver->select();
-        $message   = $generator->current();
-        $message->getId()->isNumeric();
-        $message->getContents()->is('B');
-        $generator->send(null);
-
-        $generator = $driver->select();
-        $message   = $generator->current();
-        $message->isNull();
-
-        $driver->send('C', 1);
-        $generator = $driver->select();
-        $message   = $generator->current();
-        $message->getContents()->is('C');
-        $generator->send(2);
-        $generator = $driver->select();
-        $message   = $generator->current();
-        $message->isNull();
-        sleep(2);
-        $generator = $driver->select();
-        $message   = $generator->current();
-        $message->getRetry()->is(1);
-        $message->getContents()->is('C');
-        $generator->send(null);
-
-        $driver->error(new Exception())->isFalse();
-
-        $driver->close();
+        $this->lifecycle(1, true);
     }
 
     function test_transaction()
     {
-        $driver = that(AbstractDriver::create(MYSQL_URL));
-        $driver->setup(false);
-        $driver->clear();
-
-        $original = $driver->table->return();
-
-        $driver->send('A');
-
-        $driver->table = 't_undefined';
-        $generator     = $driver->select();
-        $generator->current()->wasThrown(" doesn't exist");
-
-        $driver->table = $original;
-        $generator     = $driver->select();
-        $generator->current();
-        $driver->send('X');
-        $driver->execute("SELECT * FROM {$original}")->count(2);
-        $driver->table = 't_undefined';
-        $generator->send(null)->wasThrown(" doesn't exist");
-        $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
-
-        $driver->table = $original;
-        $generator     = $driver->select();
-        $generator->current();
-        $driver->send('X');
-        $driver->execute("SELECT * FROM {$original}")->count(2);
-        $driver->table = 't_undefined';
-        $generator->send(10)->wasThrown(" doesn't exist");
-        $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
-
-        $driver->table = $original;
-        $generator     = $driver->select();
-        $generator->current();
-        $driver->send('X');
-        $driver->execute("SELECT * FROM {$original}")->count(2);
-        $driver->table = 't_undefined';
-        $generator->throw(new Exception('throw'))->wasThrown("throw");
-        $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
-
-        $driver->close();
+        $this->transaction();
     }
 
     function test_isStandby()
@@ -148,67 +67,23 @@ class MySqlDriverTest extends AbstractTestCase
         }
     }
 
-    function test_select_sharedFile()
+    function test_shareJob()
     {
-        srand(2);
-        $sharedFile = sys_get_temp_dir() . '/jobs.txt';
-        @unlink($sharedFile);
-
-        $driver = that(AbstractDriver::create(MYSQL_URL, [
-            'waittime'   => 1,
-            'waitmode'   => 'php',
-            'sharedFile' => $sharedFile,
-        ]));
-        $driver->setup(true);
-
-        $driver->send('A');
-        $driver->send('B');
-        $driver->send('C');
-
-        $generator = $driver->select();
-        $message   = $generator->current();
-        $message->getContents()->is('A');
-        $generator->send(null);
-        unset($generator);
-
-        $cache = json_decode(file_get_contents($sharedFile), true);
-        that($cache['jobs'])->isSame([
-            2 => [
-                "job_id"   => 2,
-                "priority" => 32767,
-            ],
-            3 => [
-                "job_id"   => 3,
-                "priority" => 32767,
-            ],
-        ]);
-
-        $cache['jobs'] = array_replace([-1 => ["id" => -1, "priority" => 32767]], $cache['jobs']);
-        file_put_contents($sharedFile, json_encode($cache));
-
-        $driver->select()->current()->getContents()->isSame('B');
-
-        $driver->close();
+        $this->shareJob();
     }
 
     function test_cancel()
     {
-        $driver = that(AbstractDriver::create(MYSQL_URL));
-        $driver->setup(true);
+        $this->cancel();
 
-        $c1 = $driver->send('C1');
-        $c2 = $driver->send('C2');
-        $c3 = $driver->send('C3');
-
-        $driver->cancel(-1)->is(0);
-        $driver->cancel(-1, 'notfound')->is(0);
-        $driver->cancel($c1)->is(1);
-        $driver->cancel($c2, 'notfound')->is(1);
-        $driver->cancel(-1, 'C3')->is(1);
-        $driver->cancel($c3)->is(0);
-
+        $driver        = that(AbstractDriver::create(self::DRIVER_URL));
         $driver->table = 't_undefined';
-        $driver->cancel(-1)->wasThrown(" doesn't exist");
+        $driver->cancel(-1)->wasThrown(" exist");
+    }
+
+    function test_sleep_php()
+    {
+        $this->sleep();
     }
 
     function test_sleep_sql()
