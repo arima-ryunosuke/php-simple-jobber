@@ -231,6 +231,37 @@ class PostgreSqlDriver extends AbstractDriver
         }
     }
 
+    protected function cancel(?string $job_id = null, ?string $contents = null): int
+    {
+        $this->execute('BEGIN');
+        try {
+            // cannot cancel items already in progress
+            $where  = 'WHERE FALSE';
+            $params = [];
+            if ($job_id !== null) {
+                $where    .= ' OR job_id = $' . (count($params) + 1);
+                $params[] = $job_id;
+            }
+            if ($contents !== null) {
+                $where    .= ' OR message = $' . (count($params) + 1);
+                $params[] = $contents;
+            }
+            $job_ids = array_column($this->execute("SELECT job_id FROM {$this->table} $where FOR UPDATE SKIP LOCKED", $params, false), 'job_id');
+
+            $count = 0;
+            if ($job_ids) {
+                $count = $this->execute("DELETE FROM {$this->table} WHERE job_id IN (" . implode(',', array_map(fn($n) => "\$$n", range(1, count($job_ids)))) . ")", $job_ids, false);
+            }
+
+            $this->execute('COMMIT');
+            return $count;
+        }
+        catch (Throwable $ex) {
+            $this->execute('ROLLBACK');
+            throw $ex;
+        }
+    }
+
     protected function clear(): int
     {
         return $this->execute("DELETE FROM {$this->table}");
@@ -288,7 +319,7 @@ class PostgreSqlDriver extends AbstractDriver
         );
     }
 
-    protected function execute(string $query, array $bind = [])
+    protected function execute(string $query, array $bind = [], bool $cachePrepare = true)
     {
         $stmtname = $this->statements[$query] ??= (function () use ($query) {
             $stmtname  = 'hellowostmt' . count($this->statements);
@@ -311,6 +342,11 @@ class PostgreSqlDriver extends AbstractDriver
         }
         finally {
             pg_free_result($result);
+
+            if (!$cachePrepare) {
+                pg_query($this->connection, "DEALLOCATE $stmtname");
+                unset($this->statements[$query]);
+            }
         }
     }
 }

@@ -185,6 +185,23 @@ class FileSystemDriver extends AbstractDriver
         }
     }
 
+    protected function cancel(?string $job_id = null, ?string $contents = null): int
+    {
+        $count   = 0;
+        $targets = glob($this->directory . '/*.' . $this->extension);
+        foreach ($targets as $filepath) {
+            if (!is_dir($filepath)) {
+                $matched = false;
+                $matched = $matched || $job_id !== null && $filepath === $job_id;
+                $matched = $matched || $contents !== null && json_decode(file_get_contents($filepath))->contents === $contents;
+                if ($matched && unlink($filepath)) {
+                    $count++;
+                }
+            }
+        }
+        return $count;
+    }
+
     protected function clear(): int
     {
         $count   = 0;

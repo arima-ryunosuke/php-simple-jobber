@@ -201,4 +201,11 @@ class AbstractDriverTest extends AbstractTestCase
         $driver->waitTime(strtotime('2014-12-24 00:00:00'), 5.0, strtotime('2014-12-24 12:00:04'))->closesTo(1.0);
         $driver->waitTime(strtotime('2014-12-24 00:00:00'), 5.0, strtotime('2014-12-24 12:00:05'))->closesTo(0.0);
     }
+
+    function test_cancel()
+    {
+        $driver = that(new class ( "" ) extends AbstractDriver { });
+
+        $driver->cancel(-1)->wasThrown("is not supported");
+    }
 }

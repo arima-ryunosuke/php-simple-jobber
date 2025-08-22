@@ -123,6 +123,15 @@ abstract class API
     protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string { }
 
     /**
+     * cancel message
+     *
+     * @param ?string $job_id job id
+     * @param ?string $contents message body
+     * @return int cancel count
+     */
+    protected function cancel(?string $job_id = null, ?string $contents = null): int { }
+
+    /**
      * clear message (for debug/testing)
      *
      * must not call this on production.

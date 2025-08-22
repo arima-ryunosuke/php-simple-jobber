@@ -5,6 +5,7 @@ namespace ryunosuke\hellowo\Driver;
 use ReflectionMethod;
 use RuntimeException;
 use ryunosuke\hellowo\API;
+use ryunosuke\hellowo\Exception\UnsupportedException;
 use ryunosuke\hellowo\ext\posix;
 
 abstract class AbstractDriver extends API
@@ -301,5 +302,10 @@ abstract class AbstractDriver extends API
         else {
             return filter_var($host, FILTER_VALIDATE_IP) ? false : null;
         }
+    }
+
+    protected function cancel(?string $job_id = null, ?string $contents = null): int
+    {
+        UnsupportedException::throw("cancel is not supported");
     }
 }

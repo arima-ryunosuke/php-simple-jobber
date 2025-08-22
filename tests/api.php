@@ -31,6 +31,14 @@ $driver = (function (string $url) {
 // run by mode
 (function (AbstractDriver $driver, string $mode, string $contents, ?int $priority, ?float $delay) {
     switch ($mode) {
+        case 'cancel':
+            $client = new Client([
+                'driver' => $driver,
+            ]);
+            $client->setup(false);
+            $client->cancel(null, $contents);
+            return;
+
         case 'clear':
             $client = new Client([
                 'driver' => $driver,

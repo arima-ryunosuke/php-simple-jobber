@@ -22,6 +22,7 @@ class FunctionalTest extends AbstractTestCase
                 'priority' => true,
                 'delay'    => true,
                 'retry'    => true,
+                'cancel'   => true,
             ],
             'beanstalk'  => [
                 'driver'   => BeanstalkDriver::class,
@@ -29,6 +30,7 @@ class FunctionalTest extends AbstractTestCase
                 'priority' => true,
                 'delay'    => true,
                 'retry'    => false,
+                'cancel'   => false,
             ],
             'gearman'    => [
                 'driver'   => GearmanDriver::class,
@@ -36,6 +38,7 @@ class FunctionalTest extends AbstractTestCase
                 'priority' => true,
                 'delay'    => false, // gearman is not support delay
                 'retry'    => false,
+                'cancel'   => false,
             ],
             'mysql'      => [
                 'driver'   => MySqlDriver::class,
@@ -43,6 +46,7 @@ class FunctionalTest extends AbstractTestCase
                 'priority' => true,
                 'delay'    => true,
                 'retry'    => true,
+                'cancel'   => true,
             ],
             'pgsql'      => [
                 'driver'   => PostgreSqlDriver::class,
@@ -50,6 +54,7 @@ class FunctionalTest extends AbstractTestCase
                 'priority' => true,
                 'delay'    => true,
                 'retry'    => true,
+                'cancel'   => true,
             ],
             'rabbitmq'   => [
                 'driver'   => RabbitMqDriver::class,
@@ -57,6 +62,7 @@ class FunctionalTest extends AbstractTestCase
                 'priority' => true,
                 'delay'    => false, // rabbitmq requres rabbitmq_delayed_message_exchange
                 'retry'    => false,
+                'cancel'   => false,
             ],
         ];
         $drivers = array_filter($drivers, function ($driver) {
@@ -106,6 +112,12 @@ class FunctionalTest extends AbstractTestCase
                 $client = new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'retry', 0, 0]);
                 $client->run();
                 $initialData[] = 'retry';
+            }
+            if ($options['cancel']) {
+                $client = new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'cancel', 0, 2]);
+                $client->run();
+                $client = new Process([PHP_BINARY, $script, $options['dsn'], 'cancel', 'cancel']);
+                $client->run();
             }
 
             // wait final request

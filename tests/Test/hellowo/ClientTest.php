@@ -30,7 +30,13 @@ class ClientTest extends AbstractTestCase
             protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
             {
                 $this->data[] = get_defined_vars();
-                return count($this->data);
+                return count($this->data) - 1;
+            }
+
+            protected function cancel(?string $job_id = null, ?string $contents = null): int
+            {
+                unset($this->data[$job_id]);
+                return 1;
             }
 
             protected function clear(): int
@@ -68,14 +74,16 @@ class ClientTest extends AbstractTestCase
 
         $client->isStandby()->isFalse();
 
-        $client->send('data-0')->is(1);
+        $client->send('data-0')->is(0);
         $client->notify()->is(0);
-        $client->send('data-1', 1, 1)->is(2);
+        $client->send('data-1', 1, 1)->is(1);
         $client->notify()->is(0);
-        $client->send('data-2', 2, 2)->is(3);
+        $client->send('data-2', 2, 2)->is(2);
         $client->notify()->is(0);
-        $client->sendJson(['t' => 1234567890])->is(4);
+        $client->sendJson(['t' => 1234567890])->is(3);
         $client->notify()->is(0);
+
+        $client->cancel($client->send('data-cancel'))->is(1);
 
         that($data)->is([
             [
@@ -102,12 +110,12 @@ class ClientTest extends AbstractTestCase
 
         that($logs)->matchesCountEquals([
             '#^setup#'  => 1,
-            '#^send#'   => 4,
+            '#^send#'   => 5,
             '#^notify#' => 4,
         ]);
 
         that($events)->is([
-            "send" => ["1", "2", "3", "4"],
+            "send" => ["0", "1", "2", "3", "4"],
         ]);
 
         $client->clear()->is(4);

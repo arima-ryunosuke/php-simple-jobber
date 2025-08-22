@@ -280,6 +280,37 @@ class MySqlDriver extends AbstractDriver
         }
     }
 
+    protected function cancel(?string $job_id = null, ?string $contents = null): int
+    {
+        $this->connection->begin_transaction();
+        try {
+            // cannot cancel items already in progress
+            $where  = 'WHERE FALSE';
+            $params = [];
+            if ($job_id !== null) {
+                $where    .= ' OR job_id = ?';
+                $params[] = $job_id;
+            }
+            if ($contents !== null) {
+                $where    .= ' OR message = ?';
+                $params[] = $contents;
+            }
+            $job_ids = array_column($this->execute("SELECT job_id FROM {$this->table} $where FOR UPDATE SKIP LOCKED", $params, false), 'job_id');
+
+            $count = 0;
+            if ($job_ids) {
+                $count = $this->execute("DELETE FROM {$this->table} WHERE job_id IN (" . implode(',', array_fill(0, count($job_ids), '?')) . ")", $job_ids, false);
+            }
+
+            $this->connection->commit();
+            return $count;
+        }
+        catch (Throwable $ex) {
+            $this->connection->rollback();
+            throw $ex;
+        }
+    }
+
     protected function clear(): int
     {
         return $this->execute("DELETE FROM {$this->table}");
@@ -369,7 +400,7 @@ class MySqlDriver extends AbstractDriver
         return "SELECT $column FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC, job_id ASC $limit FOR UPDATE SKIP LOCKED";
     }
 
-    protected function execute(string $query, array $bind = [])
+    protected function execute(string $query, array $bind = [], bool $cachePrepare = true)
     {
         // poll called by other process for USR1
         if ($this->syscalled && isset($this->transport)) {
@@ -407,6 +438,11 @@ class MySqlDriver extends AbstractDriver
             }
             finally {
                 $statement->free_result();
+
+                if (!$cachePrepare) {
+                    $statement->close();
+                    unset($this->statements[$query]);
+                }
             }
         }
     }
