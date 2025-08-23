@@ -21,7 +21,12 @@ else {
 
         public function unique(): string
         {
-            return substr(sha1($this->job->getUniqueId()), 0, 36);
+            return $this->job->getUniqueId();
+        }
+
+        public function handle(): string
+        {
+            return $this->job->getJobHandle();
         }
 
         public function workload(): string

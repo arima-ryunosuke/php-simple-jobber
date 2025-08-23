@@ -36,8 +36,8 @@ class FunctionalTest extends AbstractTestCase
                 'driver'   => GearmanDriver::class,
                 'dsn'      => defined('GEARMAN_URL') ? GEARMAN_URL : null,
                 'priority' => true,
-                'delay'    => false, // gearman is not support delay
-                'retry'    => false,
+                'delay'    => true,
+                'retry'    => true,
                 'cancel'   => false,
             ],
             'mysql'      => [

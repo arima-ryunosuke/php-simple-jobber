@@ -2,6 +2,7 @@
 
 namespace ryunosuke\hellowo\Driver;
 
+use Closure;
 use Exception;
 use Generator;
 use ryunosuke\hellowo\ext\gearman;
@@ -12,7 +13,7 @@ use ryunosuke\hellowo\Message;
 
 /**
  * architecture:
- * nothing special, simply use Gearman.
+ * delay is implemented in-memory, therefore lost job at sudden death
  */
 class GearmanDriver extends AbstractDriver
 {
@@ -35,7 +36,6 @@ class GearmanDriver extends AbstractDriver
     private GearmanClient $client;
     private GearmanWorker $worker;
 
-    /** @var GearmanJob[] */
     private array $buffer = [];
 
     public function __construct(array $options)
@@ -70,8 +70,9 @@ class GearmanDriver extends AbstractDriver
     protected function daemonize(): void
     {
         $this->worker->addServer($this->host, $this->port);
-        $this->worker->addFunction($this->function, function (GearmanJob $job) {
-            $this->buffer[$job->unique()] = $job;
+        $this->worker->addFunction($this->function, function ($job) {
+            /** @var GearmanJob $job */
+            $this->buffer[$job->handle()] = json_decode($job->workload(), true) ?? ['contents' => $job->workload(), 'priority' => null, 'start_at' => microtime(true), 'retry' => 0]; // for compatible
         });
 
         parent::daemonize();
@@ -81,17 +82,25 @@ class GearmanDriver extends AbstractDriver
     {
         if (!$this->buffer) {
             $this->worker->work();
+
+            foreach ($this->buffer as $id => $job) {
+                if ($job['start_at'] > microtime(true)) {
+                    unset($this->buffer[$id]);
+                    $this->doBackgroundMethod($job['priority'])(json_encode($job));
+                }
+            }
         }
 
         foreach ($this->buffer as $id => $job) {
-            $retry = yield new Message($job->unique(), $job->workload(), 0);
+            $retry = yield new Message($id, $job['contents'], $job['retry']);
             if ($retry === null) {
                 unset($this->buffer[$id]);
             }
             else {
-                usleep($retry * 1000 * 1000);
                 unset($this->buffer[$id]);
-                $this->client->doBackground($this->function, $job->workload());
+                $job['retry']++;
+                $job['start_at'] = microtime(true) + $retry;
+                $this->doBackgroundMethod($job['priority'])(json_encode($job));
             }
             return;
         }
@@ -105,7 +114,7 @@ class GearmanDriver extends AbstractDriver
     protected function close(): void
     {
         foreach ($this->buffer as $job) {
-            $this->client->doBackground($this->function, $job->workload());
+            $this->doBackgroundMethod($job['priority'])(json_encode($job));
         }
         unset($this->client);
 
@@ -117,14 +126,12 @@ class GearmanDriver extends AbstractDriver
 
     protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
     {
-        assert($priority === null || (0 <= $priority && $priority <= 2));
-
-        $methods = [
-            0 => 'doLowBackground',
-            1 => 'doBackground',
-            2 => 'doHighBackground',
-        ];
-        return $this->client->{$methods[$priority ?? 1]}($this->function, $contents);
+        return $this->doBackgroundMethod($priority)(json_encode([
+            'contents' => $contents,
+            'priority' => $priority,
+            'start_at' => microtime(true) + ceil($delay ?? 0),
+            'retry'    => 0,
+        ]));
     }
 
     protected function clear(): int
@@ -133,7 +140,7 @@ class GearmanDriver extends AbstractDriver
         $consumer = new GearmanWorker();
         $consumer->setTimeout(100);
         $consumer->addServer($this->host, $this->port);
-        $consumer->addFunction($this->function, function (GearmanJob $job) use (&$count) {
+        $consumer->addFunction($this->function, function ($job) use (&$count) {
             $count++;
         });
         while ($consumer->work()) {
@@ -143,5 +150,17 @@ class GearmanDriver extends AbstractDriver
         }
         $consumer->unregisterAll();
         return $count;
+    }
+
+    protected function doBackgroundMethod(?int $priority = null): Closure
+    {
+        assert($priority === null || (0 <= $priority && $priority <= 2));
+
+        $methods = [
+            0 => 'doLowBackground',
+            1 => 'doBackground',
+            2 => 'doHighBackground',
+        ];
+        return fn(string $workload) => $this->client->{$methods[$priority ?? 1]}($this->function, $workload);
     }
 }
