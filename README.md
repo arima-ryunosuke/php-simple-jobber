@@ -184,6 +184,21 @@ Versioning is romantic versioning(no semantic versioning).
 - minor: small BC break. e.g. change arguments, return type etc
 - patch: no BC break. e.g. fix bug, add optional arguments, code format etc
 
+### x.y.z
+
+- RabbitMQ の廃止
+  - AMQP ならば特化した専用のパッケージを使った方が良い
+- API の除去
+  - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
+
+### 1.1.10
+
+- [feature] breather イベントを追加
+- [change] rework Gearman
+- [feature] cancel 実装
+- [refactor] 例外の構造変更と UnsupportedException を追加
+- [fixbug] sha1 は無駄だし一意ではない
+
 ### 1.1.9
 
 - [feature] prepare は1回で十分
