@@ -120,10 +120,9 @@ class MySqlDriver extends AbstractDriver
         $this->connection->query(<<<SQL
             CREATE TABLE IF NOT EXISTS {$this->table}(
                 job_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                message   LONGBLOB NOT NULL,
+                job_data  JSON NOT NULL,
                 priority  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
                 start_at  DATETIME(3) NOT NULL DEFAULT NOW(3),
-                retry     INT UNSIGNED NOT NULL DEFAULT 0,
                 PRIMARY KEY (job_id),
                 INDEX IDX_SELECT (start_at, priority)
             )
@@ -211,21 +210,22 @@ class MySqlDriver extends AbstractDriver
         foreach ($jobs as $job_id => $job) {
             $this->connection->begin_transaction();
             try {
-                $job = $this->execute("SELECT * FROM {$this->table} WHERE job_id = ? FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
+                $row = $this->execute("SELECT * FROM {$this->table} WHERE job_id = ? FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
 
-                if ($job === null) {
+                if ($row === null) {
                     $this->unshareJob($this->sharedFile, $job_id);
                     $this->connection->rollback();
                     continue;
                 }
 
-                $job['retry'] ??= 0; // for compatible
-                $retry        = yield new Message($job['job_id'], $job['message'], $job['retry']);
+                $job   = $this->decode($row['job_data']);
+                $retry = yield new Message($job_id, $job['contents'], $job['retry']);
                 if ($retry === null) {
-                    $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job['job_id']]);
+                    $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job_id]);
                 }
                 else {
-                    $this->execute("UPDATE {$this->table} SET start_at = NOW(3) + INTERVAL ? SECOND, retry = ? WHERE job_id = ?", [$retry, $job['retry'] + 1, $job['job_id']]);
+                    $job['retry']++;
+                    $this->execute("UPDATE {$this->table} SET job_data = ?, start_at = NOW(3) + INTERVAL ? SECOND WHERE job_id = ?", [$this->encode($job), $retry, $job_id]);
                 }
                 $this->unshareJob($this->sharedFile, $job_id);
                 $this->connection->commit();
@@ -259,8 +259,8 @@ class MySqlDriver extends AbstractDriver
         $priority = $priority ?? 32767;
         $delay    = $delay ?? 0;
         $this->execute(
-            "INSERT INTO {$this->table} SET message = ?, priority = ?, start_at = NOW(3) + INTERVAL ? SECOND",
-            [$contents, $priority, $delay],
+            "INSERT INTO {$this->table} SET job_data = ?, priority = ?, start_at = NOW(3) + INTERVAL ? SECOND",
+            [$this->encode(['contents' => $contents]), $priority, $delay],
         );
 
         if (!$delay && !$this->trigger) {
@@ -292,7 +292,7 @@ class MySqlDriver extends AbstractDriver
                 $params[] = $job_id;
             }
             if ($contents !== null) {
-                $where    .= ' OR message = ?';
+                $where    .= ' OR job_data->>"$.contents" = ?';
                 $params[] = $contents;
             }
             $job_ids = array_column($this->execute("SELECT job_id FROM {$this->table} $where FOR UPDATE SKIP LOCKED", $params, false), 'job_id');

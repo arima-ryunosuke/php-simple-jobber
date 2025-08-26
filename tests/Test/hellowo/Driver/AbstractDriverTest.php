@@ -150,6 +150,17 @@ class AbstractDriverTest extends AbstractTestCase
         }
     }
 
+    function test_code()
+    {
+        $driver = that(new class ( "" ) extends AbstractDriver { });
+
+        $driver->encode(['hoge' => 'HOGE'])->isJson();
+        $driver->decode('{"hoge":"HOGE"}')->isArray();
+
+        $driver->encode(['invalid' => NAN])->wasThrown('failed to encode');
+        $driver->decode('invalid')->wasThrown('failed to decode');
+    }
+
     function test_shareJob()
     {
         $jobFilename = sys_get_temp_dir() . '/jobs.txt';

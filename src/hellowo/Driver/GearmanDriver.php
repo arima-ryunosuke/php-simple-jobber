@@ -72,7 +72,7 @@ class GearmanDriver extends AbstractDriver
         $this->worker->addServer($this->host, $this->port);
         $this->worker->addFunction($this->function, function ($job) {
             /** @var GearmanJob $job */
-            $this->buffer[$job->handle()] = json_decode($job->workload(), true) ?? ['contents' => $job->workload(), 'priority' => null, 'start_at' => microtime(true), 'retry' => 0]; // for compatible
+            $this->buffer[$job->handle()] = $this->decode($job->workload());
         });
 
         parent::daemonize();
@@ -86,7 +86,7 @@ class GearmanDriver extends AbstractDriver
             foreach ($this->buffer as $id => $job) {
                 if ($job['start_at'] > microtime(true)) {
                     unset($this->buffer[$id]);
-                    $this->doBackgroundMethod($job['priority'])(json_encode($job));
+                    $this->doBackgroundMethod($job['priority'])($this->encode($job));
                 }
             }
         }
@@ -100,7 +100,7 @@ class GearmanDriver extends AbstractDriver
                 unset($this->buffer[$id]);
                 $job['retry']++;
                 $job['start_at'] = microtime(true) + $retry;
-                $this->doBackgroundMethod($job['priority'])(json_encode($job));
+                $this->doBackgroundMethod($job['priority'])($this->encode($job));
             }
             return;
         }
@@ -114,7 +114,7 @@ class GearmanDriver extends AbstractDriver
     protected function close(): void
     {
         foreach ($this->buffer as $job) {
-            $this->doBackgroundMethod($job['priority'])(json_encode($job));
+            $this->doBackgroundMethod($job['priority'])($this->encode($job));
         }
         unset($this->client);
 
@@ -126,11 +126,10 @@ class GearmanDriver extends AbstractDriver
 
     protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
     {
-        return $this->doBackgroundMethod($priority)(json_encode([
+        return $this->doBackgroundMethod($priority)($this->encode([
             'contents' => $contents,
             'priority' => $priority,
             'start_at' => microtime(true) + ceil($delay ?? 0),
-            'retry'    => 0,
         ]));
     }
 

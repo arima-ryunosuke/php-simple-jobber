@@ -151,7 +151,7 @@ class PostgreSqlDriverTest extends AbstractTestCase
         $driver = that(AbstractDriver::create(PGSQL_URL));
         $driver->setup(true);
 
-        $driver->execute("INSERT INTO testjobs(message) VALUES('test')")->is(1);
+        $driver->execute("INSERT INTO testjobs(job_data) VALUES('1')")->is(1);
         $driver->execute("SELECT * FROM testjobs")->count(1);
 
         @$driver->execute('INVALID')->wasThrown('near "INVALID"');

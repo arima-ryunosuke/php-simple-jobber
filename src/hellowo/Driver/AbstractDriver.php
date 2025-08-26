@@ -2,6 +2,8 @@
 
 namespace ryunosuke\hellowo\Driver;
 
+use Error;
+use Exception;
 use ReflectionMethod;
 use RuntimeException;
 use ryunosuke\hellowo\API;
@@ -190,6 +192,30 @@ abstract class AbstractDriver extends API
     protected function daemonize(): void
     {
         posix::proc_cmdline(posix::proc_cmdline() . '#hellowo');
+    }
+
+    protected function encode(array $contents): string
+    {
+        try {
+            return json_encode(array_replace([
+                'retry' => 0,
+            ], $contents), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        }
+        catch (Exception $e) {
+            throw new Error("failed to encode", 0, $e);
+        }
+    }
+
+    protected function decode(string $contents): array
+    {
+        try {
+            return array_replace([
+                'retry' => 0,
+            ], json_decode($contents, true, 512, JSON_THROW_ON_ERROR));
+        }
+        catch (Exception $e) {
+            throw new Error("failed to decode", 0, $e);
+        }
     }
 
     protected function shareJob(?string $sharedFile, float $waittime, callable $select, ?float $now = null): array

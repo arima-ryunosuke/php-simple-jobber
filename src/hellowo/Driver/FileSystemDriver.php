@@ -121,14 +121,14 @@ class FileSystemDriver extends AbstractDriver
 
                 // renames fail at race condition
                 if (@rename($filepath, $workfile)) {
-                    $job   = json_decode(file_get_contents($workfile), true) ?? ['contents' => file_get_contents($workfile), 'retry' => 0]; // for compatible
+                    $job   = $this->decode(file_get_contents($workfile));
                     $retry = yield new Message(basename($filepath), $job['contents'], $job['retry']);
                     if ($retry === null) {
                         unlink($workfile);
                     }
                     else {
                         $job['retry']++;
-                        file_put_contents($workfile, json_encode($job));
+                        file_put_contents($workfile, $this->encode($job));
                         rename($workfile, $filepath);
                         touch($filepath, ceil(time() + $retry));
                     }
@@ -161,7 +161,7 @@ class FileSystemDriver extends AbstractDriver
     protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
     {
         $tmpname = tempnam(sys_get_temp_dir(), sprintf('%03d', 999 - ($priority ?? 500)));
-        file_put_contents($tmpname, json_encode(['contents' => $contents, 'retry' => 0]));
+        file_put_contents($tmpname, $this->encode(['contents' => $contents]));
         touch($tmpname, time() + ceil($delay ?? 0));
 
         $jobname = "$this->directory/" . basename($tmpname) . uniqid('', true) . ".$this->extension";
@@ -193,7 +193,7 @@ class FileSystemDriver extends AbstractDriver
             if (!is_dir($filepath)) {
                 $matched = false;
                 $matched = $matched || $job_id !== null && $filepath === $job_id;
-                $matched = $matched || $contents !== null && json_decode(file_get_contents($filepath))->contents === $contents;
+                $matched = $matched || $contents !== null && $this->decode(file_get_contents($filepath))['contents'] === $contents;
                 if ($matched && unlink($filepath)) {
                     $count++;
                 }
