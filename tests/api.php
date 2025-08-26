@@ -56,13 +56,6 @@ $driver = (function (string $url) {
 
         case 'worker':
             $worker = new Worker([
-                'work'   => function (Message $message): string {
-                    if ($message->getContents() === 'retry' && $message->getRetry() < 3) {
-                        throw new RetryableException(0.1);
-                    }
-                    fwrite(STDOUT, "$message\n");
-                    return $message;
-                },
                 'driver' => $driver,
                 'logger' => new class() extends AbstractLogger {
                     public function log($level, $message, array $context = [])
@@ -71,7 +64,13 @@ $driver = (function (string $url) {
                     }
                 },
             ]);
-            $worker->start();
+            $worker->start(function (Message $message): string {
+                if ($message->getContents() === 'retry' && $message->getRetry() < 3) {
+                    throw new RetryableException(0.1);
+                }
+                fwrite(STDOUT, "$message\n");
+                return $message;
+            });
             return;
     }
 })($driver, $argv[2] ?? '', $argv[3] ?? '', strlen($argv[4] ?? '') ? $argv[4] : null, strlen($argv[5] ?? '') ? $argv[5] : null);

@@ -176,9 +176,6 @@ class WorkerTest extends AbstractTestCase
         $stdout = $this->emptyDirectory() . '/stdout.txt';
 
         $worker = new Worker([
-            'work'     => function (Message $message) use ($stdout) {
-                file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
-            },
             'driver'   => $this->createDriver(function ($count) {
                 // endloop
                 if ($count === 5) {
@@ -194,7 +191,9 @@ class WorkerTest extends AbstractTestCase
             'timeout'  => 1,
         ]);
 
-        $worker->start();
+        $worker->start(function (Message $message) use ($stdout) {
+            file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
+        });
 
         that($logs)->matchesCountEquals([
             '#^\\[\\d+\\]setup: caught#' => 1,
@@ -205,7 +204,6 @@ class WorkerTest extends AbstractTestCase
     function test_standby()
     {
         $worker = that(new Worker([
-            'work'     => function (Message $message) { },
             'driver'   => $this->createDriver(function ($count) {
                 return new Message($count, $count, 0);
             }, null, function () {
@@ -218,7 +216,7 @@ class WorkerTest extends AbstractTestCase
             'timeout'  => 1,
         ]));
 
-        $worker->start()->wasThrown(ExitException::class);
+        $worker->start(function (Message $message) { })->wasThrown(ExitException::class);
 
         that($logs)->matchesCountEquals([
             '#^\\[\\d+\\]sleep:#' => 2,
@@ -229,12 +227,6 @@ class WorkerTest extends AbstractTestCase
     {
         $logs   = [];
         $worker = new Worker([
-            'work'    => function (Message $message) {
-                if ($message->getContents() === "2") {
-                    posix::kill(getmypid(), pcntl::SIGTERM);
-                    $this->sleep(5);
-                }
-            },
             'driver'  => $this->createDriver(function ($count) {
                 if ($count === 1) {
                     posix::kill(getmypid(), pcntl::SIGUSR2);
@@ -253,7 +245,12 @@ class WorkerTest extends AbstractTestCase
             ],
         ]);
 
-        $worker->start();
+        $worker->start(function (Message $message) {
+            if ($message->getContents() === "2") {
+                posix::kill(getmypid(), pcntl::SIGTERM);
+                $this->sleep(5);
+            }
+        });
 
         that($logs)->contains(pcntl::SIGUSR2);
         that($logs)->notContains(pcntl::SIGTERM);
@@ -262,7 +259,6 @@ class WorkerTest extends AbstractTestCase
     function test_exception()
     {
         $worker = new Worker([
-            'work'    => function () { throw new Exception(); },
             'driver'  => $this->createDriver(function () use (&$worker) {
                 static $count = 0;
                 $count++;
@@ -280,7 +276,7 @@ class WorkerTest extends AbstractTestCase
             'signals' => [],
         ]);
 
-        $worker->start();
+        $worker->start(function () { throw new Exception(); });
 
         that($logs)->matchesCountEquals([
             '#^\\[\\d+\\]start:#'     => 1,
@@ -294,14 +290,13 @@ class WorkerTest extends AbstractTestCase
     function test_error()
     {
         $worker = new Worker([
-            'work'    => function () { throw new Error('error message'); },
             'driver'  => $this->createDriver(function () { return new Message(123, 'dummy', 0); }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
         ]);
 
         try {
-            $worker->start();
+            $worker->start(function () { throw new Error('error message'); });
             $this->fail('no error');
         }
         catch (Error $e) {
@@ -320,7 +315,6 @@ class WorkerTest extends AbstractTestCase
     function test_restart()
     {
         $worker = that(new Worker([
-            'work'    => function () { },
             'driver'  => $this->createDriver(function () { return null; }),
             'logger'  => new ArrayLogger($logs),
             'restart' => fn() => true,
@@ -342,6 +336,6 @@ class WorkerTest extends AbstractTestCase
         // null or default
         $worker->restartClosure(null)(0, 0)->is(null);
 
-        $worker->start()->wasThrown(ExitException::class);
+        $worker->start(function () { })->wasThrown(ExitException::class);
     }
 }

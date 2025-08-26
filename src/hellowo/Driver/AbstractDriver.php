@@ -16,7 +16,6 @@ abstract class AbstractDriver extends API
         'gearman'    => GearmanDriver::class,
         'mysql'      => MySqlDriver::class,
         'pgsql'      => PostgreSqlDriver::class,
-        'rabbitmq'   => RabbitMqDriver::class,
     ];
 
     public static function isEnabled(): bool
@@ -245,7 +244,7 @@ abstract class AbstractDriver extends API
                 throw new RuntimeException('failed to lock file'); // @codeCoverageIgnore
             }
 
-            $cache = json_decode(stream_get_contents($fp), true);
+            $cache  = json_decode(stream_get_contents($fp), true);
             $result = $cache['jobs'][$job_id] ?? null;
             unset($cache['jobs'][$job_id]);
 

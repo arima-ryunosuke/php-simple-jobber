@@ -25,13 +25,11 @@ class Worker extends API
     private array             $signals;
     private int               $timeout;
     private Closure           $restart;
-    private Closure           $work;
 
     /**
      * constructor
      *
      * @param array $options
-     *   - work(callable): executable task
      *   - driver(AbstractDriver): queue driver
      *   - logger(LoggerInterface): psr logger
      *   - signals(?callable[]): handling signals. if value is null then default handler
@@ -57,20 +55,13 @@ class Worker extends API
         $this->signals  = ($options['signals'] ?? []) + self::HANDLING_SIGNALS;
         $this->timeout  = $options['timeout'] ?? 0;
         $this->restart  = $this->restartClosure($options['restart'] ?? null);
-
-        if (isset($options['work'])) {
-            $this->work = $options['work'];
-        }
     }
 
     /**
      * start as worker
      */
-    public function start(?callable $work = null): void
+    public function start(callable $work): void
     {
-        $this->work ??= Closure::fromCallable($work);
-        assert($this->work instanceof Closure);
-
         $running = true;
         $mypid   = getmypid();
 
@@ -134,7 +125,7 @@ class Worker extends API
                             $microtime = microtime(true);
                             pcntl::alarm($this->timeout);
                             try {
-                                $return = ($this->work)($message);
+                                $return = $work($message);
                             }
                             finally {
                                 pcntl::alarm(0);

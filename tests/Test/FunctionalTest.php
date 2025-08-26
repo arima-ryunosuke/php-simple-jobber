@@ -7,7 +7,6 @@ use ryunosuke\hellowo\Driver\FileSystemDriver;
 use ryunosuke\hellowo\Driver\GearmanDriver;
 use ryunosuke\hellowo\Driver\MySqlDriver;
 use ryunosuke\hellowo\Driver\PostgreSqlDriver;
-use ryunosuke\hellowo\Driver\RabbitMqDriver;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
 
@@ -55,14 +54,6 @@ class FunctionalTest extends AbstractTestCase
                 'delay'    => true,
                 'retry'    => true,
                 'cancel'   => true,
-            ],
-            'rabbitmq'   => [
-                'driver'   => RabbitMqDriver::class,
-                'dsn'      => defined('RABBITMQ_URL') ? RABBITMQ_URL : null,
-                'priority' => true,
-                'delay'    => false, // rabbitmq requres rabbitmq_delayed_message_exchange
-                'retry'    => false,
-                'cancel'   => false,
             ],
         ];
         $drivers = array_filter($drivers, function ($driver) {
