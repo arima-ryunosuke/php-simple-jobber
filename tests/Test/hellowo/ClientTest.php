@@ -80,7 +80,7 @@ class ClientTest extends AbstractTestCase
         $client->notify()->is(0);
         $client->send('data-2', 2, 2)->is(2);
         $client->notify()->is(0);
-        $client->sendJson(['t' => 1234567890])->is(3);
+        $client->send(['t' => 1234567890])->is(3);
         $client->notify()->is(0);
 
         $client->cancel($client->send('data-cancel'))->is(1);

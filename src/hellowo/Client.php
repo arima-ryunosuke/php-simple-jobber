@@ -49,20 +49,15 @@ class Client extends API
         return $this->driver->isStandby();
     }
 
-    public function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
+    public function send($contents, ?int $priority = null, ?float $delay = null): ?string
     {
         $this->logger->info("send: {$this->logString(get_defined_vars())}");
-        $id = $this->driver->send(...func_get_args());
+        $id = $this->driver->send($this->messageString($contents), $priority, $delay);
         $this->listener->onSend($id);
         if (!$delay) {
             $this->driver->notify(1);
         }
         return $id;
-    }
-
-    public function sendJson($contents, ?int $priority = null, ?float $delay = null): ?string
-    {
-        return $this->send(json_encode($contents, JSON_UNESCAPED_UNICODE), $priority, $delay);
     }
 
     public function notify(int $count = 1): int

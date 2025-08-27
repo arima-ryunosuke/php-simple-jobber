@@ -141,6 +141,19 @@ abstract class API
     protected function clear(): int { }
 
     /**
+     * stringify for message
+     *
+     * @return string message string
+     */
+    protected function messageString($contents): string
+    {
+        if ($contents instanceof JsonSerializable || is_array($contents) || (is_object($contents) && get_class($contents) === 'stdClass')) {
+            return json_encode($contents, JSON_UNESCAPED_UNICODE);
+        }
+        return $contents;
+    }
+
+    /**
      * stringify for log
      *
      * @return string log string
