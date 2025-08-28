@@ -217,10 +217,6 @@ class PostgreSqlDriver extends AbstractDriver
             ],
         )[0]['job_id'];
 
-        if (!$delay && $this->waitmode === 'sql') {
-            $this->notify();
-        }
-
         return $id;
     }
 

@@ -263,10 +263,6 @@ class MySqlDriver extends AbstractDriver
             [$this->encode(['contents' => $contents]), $priority, $delay],
         );
 
-        if (!$delay && !$this->trigger) {
-            $this->notify();
-        }
-
         return $this->connection->insert_id;
     }
 

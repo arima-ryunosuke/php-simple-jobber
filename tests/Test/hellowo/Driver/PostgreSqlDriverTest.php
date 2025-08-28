@@ -93,11 +93,13 @@ class PostgreSqlDriverTest extends AbstractTestCase
         // stream_select returns 0
         $time = microtime(true);
         $driver->sleep();
+        $driver->notify();
         that(microtime(true) - $time)->gt(2);
 
         // break by hellowo_awake
         $time = microtime(true);
         $driver->sleep();
+        $driver->notify();
         that(microtime(true) - $time)->lt(2);
 
         $driver->close();

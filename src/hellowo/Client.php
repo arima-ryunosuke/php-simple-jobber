@@ -54,6 +54,9 @@ class Client extends API
         $this->logger->info("send: {$this->logString(get_defined_vars())}");
         $id = $this->driver->send(...func_get_args());
         $this->listener->onSend($id);
+        if (!$delay) {
+            $this->driver->notify(1);
+        }
         return $id;
     }
 

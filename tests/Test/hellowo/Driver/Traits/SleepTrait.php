@@ -16,6 +16,7 @@ trait SleepTrait
 
         $time = microtime(true);
         $driver->sleep();
+        $driver->notify();
         that(microtime(true) - $time)->lessThan(1.1);
 
         $driver->close();
