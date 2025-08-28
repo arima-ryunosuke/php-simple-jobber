@@ -31,8 +31,8 @@
     "ext-inotify": "Required depending on the driver",
     "ext-gearman": "Required depending on the driver",
     "ext-mysqli": "Required depending on the driver",
-    "pda/pheanstalk": "Required depending on the driver",
-    "php-amqplib/php-amqplib": "Required depending on the driver"
+    "ext-pgsql": "Required depending on the driver",
+    "pda/pheanstalk": "Required depending on the driver"
   },
   "autoload": {
     "psr-4": {
@@ -58,8 +58,7 @@
       "sh tests/integration.sh beanstalk",
       "sh tests/integration.sh gearman",
       "sh tests/integration.sh mysql",
-      "sh tests/integration.sh pgsql",
-      "sh tests/integration.sh rabbitmq"
+      "sh tests/integration.sh pgsql"
     ]
   }
 }

@@ -22,7 +22,6 @@ services:
       - 23306:3306
   pgsql:
     image: docker.io/postgres:16.4
-    container_name: pgsql
     environment:
       POSTGRES_DB: hellowo
       POSTGRES_USER: user
@@ -30,10 +29,3 @@ services:
       TZ: 'Asia/Tokyo'
     ports:
       - 25432:5432
-  rabbitmq:
-    image: docker.io/rabbitmq:latest
-    environment:
-      RABBITMQ_DEFAULT_USER: user
-      RABBITMQ_DEFAULT_PASS: password
-    ports:
-      - 25672:5672

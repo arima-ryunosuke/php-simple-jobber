@@ -23,23 +23,22 @@ This requires `pcntl` extension. Also, Windows only works minimally.
 
 Driver features:
 
-| feature                      | FileSystem      | Gearman         | Beanstalk       | MySql           | PostgreSql      | RabbitMQ        |
-|------------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|-----------------|
-| simply                       | very high       | high            | high            | middle          | middle          | low             |
-| pull or push(*1)             | pull(&inotify)  | push            | push            | pull(&trigger)  | pull(&pub/sub)  | push            |
-| multi worker server          | optional(*2)    | yes             | yes             | yes             | yes             | yes             |
-| not lost to sudden death(*3) | yes (ttr)       | no              | yes (ttr)       | yes (kill)      | yes (keepalive) | yes (heartbeat) |
-| priority job                 | yes             | yes             | yes             | yes             | yes             | yes             |
-| delay job                    | yes             | no              | yes             | yes             | yes             | optional(*4)    |
-| managed retry                | no              | no              | no              | no              | no              | yes             |
-| unmanaged retry limit        | yes             | no              | no              | yes             | yes             | no              |
-| clustering                   | no              | no              | no              | optional(*5)    | optional(*5)    | yes             |
+| feature                      | FileSystem      | Gearman         | Beanstalk       | MySql           | PostgreSql      |
+|------------------------------|-----------------|-----------------|-----------------|-----------------|-----------------|
+| simply                       | very high       | high            | high            | middle          | middle          |
+| pull or push(*1)             | pull(&inotify)  | push            | push            | pull(&trigger)  | pull(&pub/sub)  |
+| multi worker server          | optional(*2)    | yes             | yes             | yes             | yes             |
+| not lost to sudden death(*3) | yes (ttr)       | no              | yes (ttr)       | yes (kill)      | yes (keepalive) |
+| priority job                 | yes             | yes             | yes             | yes             | yes             |
+| delay job                    | yes             | no              | yes             | yes             | yes             |
+| managed retry                | no              | no              | no              | no              | no              |
+| unmanaged retry limit        | yes             | no              | no              | yes             | yes             |
+| clustering                   | no              | no              | no              | optional(*4)    | optional(*4)    |
 
 - *1 push is almost real-time, but pull has time lag due to polling
 - *2 e.g. NFS
 - *3 Except for FileSystem, TCP keepalive can be enabled to some extent
-- *4 e.g. rabbitmq-delayed-message-exchange, Deadletter exchange
-- *5 e.g. Replication, Fabric, NDB
+- *4 e.g. Replication, Fabric, NDB
 
 ### Worker
 
@@ -56,10 +55,7 @@ php error log uses system default. This can be changed by php.ini or ini_set.
 ### Client
 
 Client is a simple class from which only the request part of the driver is extracted.
-You can use any client to send jobs without using this class.
-
-- e.g. filesystem: `touch /path/to/job.txt`
-- e.g. mysql: `INSERT INTO jobs(message) VALUES("foo")`
+You can use `send` or `sendBulk` for add job.
 
 ## Demo
 
@@ -73,34 +69,41 @@ require root.
 
 ```bash
 sudo su -
-RUNSCRIPT=/path/to/example.php
+WORKDIR=/path/to/hellowo
+```
+
+### ready driver
+
+```bash
+cat << 'EOS' > $WORKDIR/driver.php
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
+return new ryunosuke\hellowo\Driver\MySqlDriver([
+    'transport'  => [
+        'host'     => '127.0.0.1',
+        'username' => 'root',
+        'password' => 'password',
+    ],
+    // job database.table name
+    'database'   => 'test',
+    'table'      => 't_job',
+    'waittime'   => 2.0,
+    'waitmode'   => 'php',
+    'sharedFile' => '/tmp/jobs.txt',
+]);
+EOS
 ```
 
 ### ready worker
 
 ```bash
-cat << 'EOS' > $RUNSCRIPT
+cat << 'EOS' > $WORKDIR/worker.php
 <?php
-require_once __DIR__ . '/vendor/autoload.php';
-$worker = new ryunosuke\hellowo\Worker([
-    'work'   => function (ryunosuke\hellowo\Message $message) {
-        file_put_contents('/var/log/hellowo/receive.log', "$message\n", FILE_APPEND | LOCK_EX);
-    },
-    'driver' => new ryunosuke\hellowo\Driver\MySqlDriver([
-        'starttime' => strtotime('2000-01-01 00:00:00') + getenv('SYSTEMD_SERVICE_ID') * 4,
-        'waittime'  => 30.0,
-        'waitmode'  => 'sql',
-        'transport' => [
-            'host'     => '127.0.0.1',
-            'user'     => 'root',
-            'password' => 'password',
-            'database' => 'test',
-        ],
-        // job table name
-        'table'    => 't_job',
-    ]),
-]);
-$worker->start();
+$driver = require __DIR__ . '/driver.php';
+$worker = new ryunosuke\hellowo\Worker(['driver' => $driver]);
+$worker->start(function (ryunosuke\hellowo\Message $message) {
+    file_put_contents('/var/log/hellowo/receive.log', "$message\n", FILE_APPEND | LOCK_EX);
+});
 EOS
 ```
 
@@ -116,7 +119,7 @@ PartOf=example.target
 Type=simple
 Environment=SYSTEMD_SERVICE_ID=%i
 ExecStartPre=/bin/mkdir -p /var/log/hellowo
-ExecStart=/bin/sh -c 'exec /usr/bin/php $RUNSCRIPT 1>/var/log/hellowo/stdout-%i.log 2>/var/log/hellowo/stderr-%i.log'
+ExecStart=/bin/sh -c 'exec /usr/bin/php $WORKDIR/worker.php 1>/var/log/hellowo/stdout-%i.log 2>/var/log/hellowo/stderr-%i.log'
 TimeoutStopSec=90s
 Restart=always
 
@@ -139,19 +142,17 @@ systemctl restart example.target
 systemctl status example@*
 ```
 
-### send data
+### ready client
 
 ```bash
-cat << EOS | mysql -h 127.0.0.1 -u root test
-INSERT INTO t_job (message)
-WITH RECURSIVE seq (n) AS
-(
-  SELECT 1
-  UNION ALL
-  SELECT n + 1 FROM seq WHERE n < 100
-)
-SELECT CONCAT("data-", n) FROM seq;
+cat << 'EOS' > $WORKDIR/client.php
+<?php
+$driver = require __DIR__ . '/driver.php';
+$client = new ryunosuke\hellowo\Client(['driver' => $driver]);
+$client->sendBulk(array_map(fn($v) => "data-$v", range(1, 99)));
 EOS
+
+php client.php
 ```
 
 ### output log
@@ -186,10 +187,22 @@ Versioning is romantic versioning(no semantic versioning).
 
 ### x.y.z
 
-- RabbitMQ の廃止
-  - AMQP ならば特化した専用のパッケージを使った方が良い
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
+
+### 1.2.0
+
+- [fixbug] gearman に未来 job を登録するとその間無限ループする
+- [*feature] job 側にも timeout を持たせる
+- [*feature] delay に予定時刻を入れられる機能
+- [*feature] 失敗したジョブを保存する機能
+- [feature] sendBulk を追加
+- [*change] sendJson 廃止
+- [*change] notify は Client の責務とする
+- [*change] job データは json で包む
+- [*change] wait 系のデフォルト waittime を 10 に変更
+- [*change] drop deprecated
+- [tests] 意味の分からないコードがあったので除去
 
 ### 1.1.10
 
