@@ -60,6 +60,20 @@ class Client extends API
         return $id;
     }
 
+    public function sendBulk(iterable $contents, ?int $priority = null, ?float $delay = null): array
+    {
+        $this->logger->info("sendBulk: {$this->logString(get_defined_vars())}");
+        $ids = [];
+        foreach ($contents as $content) {
+            $ids[] = $id = $this->driver->send($this->messageString($content), $priority, $delay);
+            $this->listener->onSend($id);
+        }
+        if (!$delay && $ids) {
+            $this->driver->notify(count($ids));
+        }
+        return $ids;
+    }
+
     public function notify(int $count = 1): int
     {
         $this->logger->info("notify: {$this->logString(get_defined_vars())}");

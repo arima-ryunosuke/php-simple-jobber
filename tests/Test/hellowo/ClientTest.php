@@ -82,6 +82,11 @@ class ClientTest extends AbstractTestCase
         $client->notify()->is(0);
         $client->send(['t' => 1234567890])->is(3);
         $client->notify()->is(0);
+        $client->sendBulk((function (){
+            yield 'data-11';
+            yield 'data-12';
+            yield ['data-json'];
+        })(), 2)->is([4, 5, 6]);
 
         $client->cancel($client->send('data-cancel'))->is(1);
 
@@ -106,18 +111,34 @@ class ClientTest extends AbstractTestCase
                 "priority" => null,
                 "delay"    => null,
             ],
+            [
+                "contents" => "data-11",
+                "priority" => 2,
+                "delay"    => null,
+            ],
+            [
+                "contents" => "data-12",
+                "priority" => 2,
+                "delay"    => null,
+            ],
+            [
+                "contents" => '["data-json"]',
+                "priority" => 2,
+                "delay"    => null,
+            ],
         ]);
 
         that($logs)->matchesCountEquals([
-            '#^setup#'  => 1,
-            '#^send#'   => 5,
-            '#^notify#' => 4,
+            '#^setup:#'    => 1,
+            '#^send:#'     => 5,
+            '#^sendBulk:#' => 1,
+            '#^notify:#'   => 4,
         ]);
 
         that($events)->is([
-            "send" => ["0", "1", "2", "3", "4"],
+            "send" => ["0", "1", "2", "3", "4", "5", "6", "7"],
         ]);
 
-        $client->clear()->is(4);
+        $client->clear()->is(7);
     }
 }
