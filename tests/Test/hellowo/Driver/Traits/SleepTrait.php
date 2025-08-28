@@ -14,12 +14,6 @@ trait SleepTrait
         ]));
         $driver->setup(true);
 
-        $driver = that(AbstractDriver::create(MYSQL_URL, [
-            'waittime' => 1,
-            'waitmode' => 'php',
-        ]));
-        $driver->setup(true);
-
         $time = microtime(true);
         $driver->sleep();
         that(microtime(true) - $time)->lessThan(1.1);
