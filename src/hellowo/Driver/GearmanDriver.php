@@ -49,7 +49,7 @@ class GearmanDriver extends AbstractDriver
             // gearman function name
             'function'  => 'hellowo',
             // one cycle wait time
-            'waittime'  => 60.0,
+            'waittime'  => 10.0,
         ]);
 
         $this->host     = $options['transport']['host'];

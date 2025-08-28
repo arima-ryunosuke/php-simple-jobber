@@ -42,7 +42,7 @@ class BeanstalkDriver extends AbstractDriver
             // beanstalkd tube name
             'tube'      => 'hellowo',
             // one cycle wait time
-            'waittime'  => 60.0,
+            'waittime'  => 10.0,
         ]);
 
         $this->connection = Pheanstalk::create($options['transport']['host'], $options['transport']['port']);
