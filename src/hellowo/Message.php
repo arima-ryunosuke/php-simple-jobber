@@ -7,12 +7,14 @@ class Message
     private string $id;
     private string $contents;
     private int    $retry;
+    private int    $timeout;
 
-    public function __construct(string $id, string $contents, int $retry)
+    public function __construct(string $id, string $contents, int $retry, int $timeout)
     {
         $this->id       = $id;
         $this->contents = $contents;
         $this->retry    = $retry;
+        $this->timeout  = $timeout;
     }
 
     public function __toString(): string
@@ -38,5 +40,10 @@ class Message
     public function getRetry(): int
     {
         return $this->retry;
+    }
+
+    public function getTimeout(): int
+    {
+        return $this->timeout;
     }
 }

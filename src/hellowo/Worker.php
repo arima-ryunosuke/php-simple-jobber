@@ -34,7 +34,7 @@ class Worker extends API
      *   - logger(LoggerInterface): psr logger
      *   - signals(?callable[]): handling signals. if value is null then default handler
      *   - listener(Listener): event emitter. events are 'done', 'retry', 'timeout', 'fail'
-     *   - timeout(int): work timeout second
+     *   - timeout(int): default work timeout second
      *   - restart(mixed): restart condition. "change" is deprecated because it is for debugging
      */
     public function __construct(array $options = [])
@@ -113,6 +113,7 @@ class Worker extends API
                 // select next job and run
                 $generator = $this->driver->select();
                 try {
+                    /** @var ?Message $message */
                     $message = $generator->current();
                     if ($message === null) {
                         $this->logger->debug("[$mypid]breather: {$this->logString($cycle)}");
@@ -123,7 +124,7 @@ class Worker extends API
 
                         try {
                             $microtime = microtime(true);
-                            pcntl::alarm($this->timeout);
+                            pcntl::alarm($message->getTimeout() ?: $this->timeout);
                             try {
                                 $return = $work($message);
                             }

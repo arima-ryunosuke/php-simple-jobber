@@ -238,7 +238,7 @@ class MySqlDriver extends AbstractDriver
                 }
 
                 $job    = $this->decode($row['job_data']);
-                $result = yield new Message($job_id, $job['contents'], $job['retry']);
+                $result = yield new Message($job_id, $job['contents'], $job['retry'], $job['timeout']);
                 if ($result === null) {
                     $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job_id]);
                 }
@@ -282,12 +282,12 @@ class MySqlDriver extends AbstractDriver
         gc_collect_cycles();
     }
 
-    protected function send(string $contents, ?int $priority = null, $time = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null, int $timeout = 0): ?string
     {
         $priority = $priority ?? 32767;
         $this->execute(
             "INSERT INTO {$this->table} SET job_data = ?, priority = ?, start_at = NOW(3) + INTERVAL ? SECOND",
-            [$this->encode(['contents' => $contents]), $priority, $this->getDelay($time)],
+            [$this->encode(['contents' => $contents, 'timeout' => $timeout]), $priority, $this->getDelay($time)],
         );
 
         return $this->connection->insert_id;

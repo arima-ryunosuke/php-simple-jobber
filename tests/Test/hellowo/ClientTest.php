@@ -27,7 +27,7 @@ class ClientTest extends AbstractTestCase
                 $this->data = [];
             }
 
-            protected function send(string $contents, ?int $priority = null, $time = null): ?string
+            protected function send(string $contents, ?int $priority = null, $time = null, int $timeout = 0): ?string
             {
                 $this->data[] = get_defined_vars();
                 return count($this->data) - 1;
@@ -76,9 +76,9 @@ class ClientTest extends AbstractTestCase
 
         $client->send('data-0')->is(0);
         $client->notify()->is(0);
-        $client->send('data-1', 1, 1)->is(1);
+        $client->send('data-1', 1, 1, 2)->is(1);
         $client->notify()->is(0);
-        $client->send('data-2', 2, 2)->is(2);
+        $client->send('data-2', 2, 2, 2)->is(2);
         $client->notify()->is(0);
         $client->send(['t' => 1234567890])->is(3);
         $client->notify()->is(0);
@@ -95,36 +95,43 @@ class ClientTest extends AbstractTestCase
                 "contents" => "data-0",
                 "priority" => null,
                 "time"     => null,
+                "timeout"  => null,
             ],
             [
                 "contents" => "data-1",
                 "priority" => 1,
                 "time"     => 1.0,
+                "timeout"  => 2,
             ],
             [
                 "contents" => "data-2",
                 "priority" => 2,
                 "time"     => 2.0,
+                "timeout"  => 2,
             ],
             [
                 "contents" => '{"t":1234567890}',
                 "priority" => null,
                 "time"     => null,
+                "timeout"  => null,
             ],
             [
                 "contents" => "data-11",
                 "priority" => 2,
                 "time"     => null,
+                "timeout"  => null,
             ],
             [
                 "contents" => "data-12",
                 "priority" => 2,
                 "time"     => null,
+                "timeout"  => null,
             ],
             [
                 "contents" => '["data-json"]',
                 "priority" => 2,
                 "time"     => null,
+                "timeout"  => null,
             ],
         ]);
 

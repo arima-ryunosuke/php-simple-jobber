@@ -59,7 +59,7 @@ class BeanstalkDriver extends AbstractDriver
         $pheanstalkJob = $this->connection->reserveWithTimeout(ceil($this->waittime));
         if ($pheanstalkJob) {
             $job    = $this->decode($pheanstalkJob->getData());
-            $result = yield new Message($pheanstalkJob->getId(), $job['contents'], 0);
+            $result = yield new Message($pheanstalkJob->getId(), $job['contents'], 0, 0);
             if ($result === null) {
                 $this->connection->delete($pheanstalkJob);
             }
@@ -84,7 +84,7 @@ class BeanstalkDriver extends AbstractDriver
         gc_collect_cycles();
     }
 
-    protected function send(string $contents, ?int $priority = null, $time = null, ?int $ttr = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null, int $timeout = 0, ?int $ttr = null): ?string
     {
         $priority = $priority ?? PheanstalkInterface::DEFAULT_PRIORITY;
         $time     = $time ?? PheanstalkInterface::DEFAULT_DELAY;

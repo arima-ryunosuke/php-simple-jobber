@@ -123,7 +123,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 6) {
                     throw new LogicException('stop');
                 }
-                return new Message($count, $count, 0);
+                return new Message($count, $count, 0, 0);
             }),
             'logger'   => new ArrayLogger($logs),
             'listener' => new ArrayListener($events),
@@ -185,7 +185,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 5) {
                     throw new LogicException('stop');
                 }
-                return new Message($count, $count, 0);
+                return new Message($count, $count, 0, 0);
             }, function () {
                 throw new RuntimeException('setup failed');
             }),
@@ -209,7 +209,7 @@ class WorkerTest extends AbstractTestCase
     {
         $worker = that(new Worker([
             'driver'   => $this->createDriver(function ($count) {
-                return new Message($count, $count, 0);
+                return new Message($count, $count, 0, 0);
             }, null, function () {
                 static $counter = 0;
                 return $counter++ < 3;
@@ -236,7 +236,7 @@ class WorkerTest extends AbstractTestCase
                     posix::kill(getmypid(), pcntl::SIGUSR2);
                 }
                 if ($count === 2) {
-                    return new Message($count, $count, 0);
+                    return new Message($count, $count, 0, 0);
                 }
                 return null;
             }),
@@ -260,6 +260,44 @@ class WorkerTest extends AbstractTestCase
         that($logs)->notContains(pcntl::SIGTERM);
     }
 
+    function test_timeout()
+    {
+        $worker = new Worker([
+            'driver'   => $this->createDriver(function ($count) {
+                if ($count === 1) {
+                    return new Message($count, $count, 0, 3);
+                }
+                if ($count === 2) {
+                    return new Message($count, $count, 0, 0);
+                }
+                if ($count === 3) {
+                    posix::kill(getmypid(), pcntl::SIGTERM);
+                }
+                return null;
+            }),
+            'timeout'  => 1,
+            'logger'   => new ArrayLogger($logs),
+            'listener' => new ArrayListener($events),
+        ]);
+
+        $worker->start(function (Message $message) {
+            while (true) {
+                pcntl::signal_dispatch();
+                usleep(10_000);
+            }
+        });
+
+        that($logs)->matchesCountEquals([
+            '#^\\[\\d+\\]timeout: elapsed 3.\\d#' => 1,
+            '#^\\[\\d+\\]timeout: elapsed 1.\\d#' => 1,
+        ]);
+        that($events)->isSame([
+            "timeout"  => ["1", "2"],
+            "cycle"    => [0, 1, 2],
+            "breather" => [2],
+        ]);
+    }
+
     function test_exception()
     {
         $worker = new Worker([
@@ -274,7 +312,7 @@ class WorkerTest extends AbstractTestCase
                 if ($count === 3) {
                     posix::kill(getmypid(), pcntl::SIGTERM);
                 }
-                return new Message($count, $count, 0);
+                return new Message($count, $count, 0, 0);
             }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
@@ -294,7 +332,7 @@ class WorkerTest extends AbstractTestCase
     function test_error()
     {
         $worker = new Worker([
-            'driver'  => $this->createDriver(function () { return new Message(123, 'dummy', 0); }),
+            'driver'  => $this->createDriver(function () { return new Message(123, 'dummy', 0, 0); }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
         ]);

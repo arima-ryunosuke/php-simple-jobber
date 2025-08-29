@@ -94,7 +94,7 @@ class GearmanDriver extends AbstractDriver
         }
 
         foreach ($this->buffer as $id => $job) {
-            $result = yield new Message($id, $job['contents'], $job['retry']);
+            $result = yield new Message($id, $job['contents'], $job['retry'], $job['timeout']);
             if ($result === null) {
                 unset($this->buffer[$id]);
             }
@@ -131,12 +131,13 @@ class GearmanDriver extends AbstractDriver
         gc_collect_cycles();
     }
 
-    protected function send(string $contents, ?int $priority = null, $time = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null, int $timeout = 0): ?string
     {
         return $this->doBackgroundMethod($priority)($this->function, $this->encode([
             'contents' => $contents,
             'priority' => $priority,
             'start_at' => microtime(true) + ceil($this->getDelay($time)),
+            'timeout'  => $timeout,
         ]));
     }
 

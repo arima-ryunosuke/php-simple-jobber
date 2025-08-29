@@ -119,9 +119,10 @@ abstract class API
      * @param string $contents message body
      * @param ?int $priority the higher the value, the higher the priority
      * @param null|float|string|DateTimeInterface $time delay expression
+     * @param int $timeout job timeout
      * @return ?string job id if supported
      */
-    protected function send(string $contents, ?int $priority = null, /*null|float|string|DateTimeInterface*/ $time = null): ?string { }
+    protected function send(string $contents, ?int $priority = null, /*null|float|string|DateTimeInterface*/ $time = null, int $timeout = 0): ?string { }
 
     /**
      * cancel message

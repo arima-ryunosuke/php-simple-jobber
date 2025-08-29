@@ -127,7 +127,7 @@ class FileSystemDriver extends AbstractDriver
                 // renames fail at race condition
                 if (@rename($filepath, $workfile)) {
                     $job    = $this->decode(file_get_contents($workfile));
-                    $result = yield new Message(basename($filepath), $job['contents'], $job['retry']);
+                    $result = yield new Message(basename($filepath), $job['contents'], $job['retry'], $job['timeout']);
                     if ($result === null) {
                         unlink($workfile);
                     }
@@ -168,10 +168,10 @@ class FileSystemDriver extends AbstractDriver
         }
     }
 
-    protected function send(string $contents, ?int $priority = null, $time = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null, int $timeout = 0): ?string
     {
         $tmpname = tempnam(sys_get_temp_dir(), sprintf('%03d', 999 - ($priority ?? 500)));
-        file_put_contents($tmpname, $this->encode(['contents' => $contents]));
+        file_put_contents($tmpname, $this->encode(['contents' => $contents, 'timeout' => $timeout]));
         touch($tmpname, time() + ceil($this->getDelay($time)));
 
         $jobname = "$this->directory/" . basename($tmpname) . uniqid('', true) . ".$this->extension";

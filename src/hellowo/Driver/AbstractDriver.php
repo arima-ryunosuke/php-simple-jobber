@@ -199,7 +199,8 @@ abstract class AbstractDriver extends API
     {
         try {
             return json_encode(array_replace([
-                'retry' => 0,
+                'retry'   => 0,
+                'timeout' => 0,
             ], $contents), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         }
         catch (Exception $e) {
@@ -211,7 +212,8 @@ abstract class AbstractDriver extends API
     {
         try {
             return array_replace([
-                'retry' => 0,
+                'retry'   => 0,
+                'timeout' => 0,
             ], json_decode($contents, true, 512, JSON_THROW_ON_ERROR));
         }
         catch (Exception $e) {

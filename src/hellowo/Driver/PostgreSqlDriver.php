@@ -188,7 +188,7 @@ class PostgreSqlDriver extends AbstractDriver
                 }
 
                 $job    = $this->decode($row['job_data']);
-                $result = yield new Message($job_id, pg_unescape_bytea($job['contents']), $job['retry']);
+                $result = yield new Message($job_id, pg_unescape_bytea($job['contents']), $job['retry'], $job['timeout']);
                 if ($result === null) {
                     $this->execute("DELETE FROM {$this->table} WHERE job_id = $1", [$job_id]);
                 }
@@ -232,12 +232,12 @@ class PostgreSqlDriver extends AbstractDriver
         gc_collect_cycles();
     }
 
-    protected function send(string $contents, ?int $priority = null, $time = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null, int $timeout = 0): ?string
     {
         $priority = $priority ?? 32767;
         $id       = $this->execute(
             "INSERT INTO {$this->table}(job_data, priority, start_at) VALUES ($1, $2, NOW() + $3) RETURNING job_id",
-            [/* pg_escape_bytea is not necessary when binding */ $this->encode(['contents' => $contents]),
+            [/* pg_escape_bytea is not necessary when binding */ $this->encode(['contents' => $contents, 'timeout' => $timeout]),
              $priority,
              "{$this->getDelay($time)} SECOND",
             ],

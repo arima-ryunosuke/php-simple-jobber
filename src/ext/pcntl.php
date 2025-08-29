@@ -59,7 +59,7 @@ class pcntl
 
     private static bool  $async_signals = false;
     private static array $handlers      = [];
-    private static int   $alarm_start   = 0;
+    private static float $alarm_start   = 0;
     private static int   $alarm_seconds = 0;
 
     public static function async_signals(?bool $enable = null): bool
@@ -95,7 +95,7 @@ class pcntl
         $signals    = array_map('intval', @file($signalfile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: []);
         file_put_contents($signalfile, '', LOCK_EX);
 
-        if (self::$alarm_seconds > 0 && time() >= self::$alarm_start + self::$alarm_seconds) {
+        if (self::$alarm_seconds > 0 && microtime(true) >= (self::$alarm_start + self::$alarm_seconds)) {
             self::$alarm_seconds = 0;
             $signals[]           = self::SIGALRM;
         }
@@ -144,7 +144,7 @@ class pcntl
             return pcntl_alarm($seconds);
         }
 
-        self::$alarm_start = time();
+        self::$alarm_start = microtime(true);
 
         $return              = self::$alarm_seconds;
         self::$alarm_seconds = $seconds;
