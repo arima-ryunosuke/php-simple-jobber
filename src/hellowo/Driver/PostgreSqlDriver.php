@@ -232,15 +232,14 @@ class PostgreSqlDriver extends AbstractDriver
         gc_collect_cycles();
     }
 
-    protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null): ?string
     {
         $priority = $priority ?? 32767;
-        $delay    = $delay ?? 0;
         $id       = $this->execute(
             "INSERT INTO {$this->table}(job_data, priority, start_at) VALUES ($1, $2, NOW() + $3) RETURNING job_id",
             [/* pg_escape_bytea is not necessary when binding */ $this->encode(['contents' => $contents]),
              $priority,
-             "$delay SECOND",
+             "{$this->getDelay($time)} SECOND",
             ],
         )[0]['job_id'];
 

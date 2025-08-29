@@ -2,6 +2,7 @@
 
 namespace ryunosuke\Test\hellowo\Driver;
 
+use DateTime;
 use Exception;
 use RuntimeException;
 use ryunosuke\hellowo\Driver\AbstractDriver;
@@ -159,6 +160,18 @@ class AbstractDriverTest extends AbstractTestCase
 
         $driver->encode(['invalid' => NAN])->wasThrown('failed to encode');
         $driver->decode('invalid')->wasThrown('failed to decode');
+    }
+
+    function test_getDelay()
+    {
+        $driver = that(new class ( "" ) extends AbstractDriver { });
+
+        $driver->getDelay(null)->is('0.0');
+        $driver->getDelay(0.5)->is('0.5');
+        $driver->getDelay(1.5)->is('1.5');
+        $driver->getDelay("1.5")->is('1.5');
+        $driver->getDelay((new DateTime('+3 seconds'))->format('Y/m/d H:i:s'))->isBetween(2, 3);
+        $driver->getDelay('+1 day')->is("86400", 0.1);
     }
 
     function test_shareJob()

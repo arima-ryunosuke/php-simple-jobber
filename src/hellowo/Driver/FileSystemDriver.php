@@ -168,11 +168,11 @@ class FileSystemDriver extends AbstractDriver
         }
     }
 
-    protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null): ?string
     {
         $tmpname = tempnam(sys_get_temp_dir(), sprintf('%03d', 999 - ($priority ?? 500)));
         file_put_contents($tmpname, $this->encode(['contents' => $contents]));
-        touch($tmpname, time() + ceil($delay ?? 0));
+        touch($tmpname, time() + ceil($this->getDelay($time)));
 
         $jobname = "$this->directory/" . basename($tmpname) . uniqid('', true) . ".$this->extension";
         rename($tmpname, $jobname);

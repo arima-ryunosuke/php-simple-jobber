@@ -84,14 +84,14 @@ class BeanstalkDriver extends AbstractDriver
         gc_collect_cycles();
     }
 
-    protected function send(string $contents, ?int $priority = null, ?float $delay = null, ?int $ttr = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null, ?int $ttr = null): ?string
     {
         $priority = $priority ?? PheanstalkInterface::DEFAULT_PRIORITY;
-        $delay    = $delay ?? PheanstalkInterface::DEFAULT_DELAY;
+        $time     = $time ?? PheanstalkInterface::DEFAULT_DELAY;
         $ttr      = $ttr ?? PheanstalkInterface::DEFAULT_TTR;
 
         // beanstalk's priority: 0 ~ 4294967295 (high ~ low)
-        $job = $this->connection->put($this->encode(['contents' => $contents]), 4294967295 - $priority, ceil($delay), $ttr);
+        $job = $this->connection->put($this->encode(['contents' => $contents]), 4294967295 - $priority, ceil($this->getDelay($time)), $ttr);
         return (string) $job->getId();
     }
 

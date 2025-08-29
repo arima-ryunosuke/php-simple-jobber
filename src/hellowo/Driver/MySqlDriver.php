@@ -282,13 +282,12 @@ class MySqlDriver extends AbstractDriver
         gc_collect_cycles();
     }
 
-    protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null): ?string
     {
         $priority = $priority ?? 32767;
-        $delay    = $delay ?? 0;
         $this->execute(
             "INSERT INTO {$this->table} SET job_data = ?, priority = ?, start_at = NOW(3) + INTERVAL ? SECOND",
-            [$this->encode(['contents' => $contents]), $priority, $delay],
+            [$this->encode(['contents' => $contents]), $priority, $this->getDelay($time)],
         );
 
         return $this->connection->insert_id;

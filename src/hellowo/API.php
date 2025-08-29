@@ -2,6 +2,7 @@
 
 namespace ryunosuke\hellowo;
 
+use DateTimeInterface;
 use Exception;
 use Generator;
 use JsonSerializable;
@@ -117,10 +118,10 @@ abstract class API
      *
      * @param string $contents message body
      * @param ?int $priority the higher the value, the higher the priority
-     * @param ?float $delay delay seconds
+     * @param null|float|string|DateTimeInterface $time delay expression
      * @return ?string job id if supported
      */
-    protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string { }
+    protected function send(string $contents, ?int $priority = null, /*null|float|string|DateTimeInterface*/ $time = null): ?string { }
 
     /**
      * cancel message

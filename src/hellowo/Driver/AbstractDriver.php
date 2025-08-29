@@ -2,6 +2,7 @@
 
 namespace ryunosuke\hellowo\Driver;
 
+use DateTime;
 use Error;
 use Exception;
 use ReflectionMethod;
@@ -216,6 +217,21 @@ abstract class AbstractDriver extends API
         catch (Exception $e) {
             throw new Error("failed to decode", 0, $e);
         }
+    }
+
+    protected function getDelay(/*null|float|string|DateTimeInterface*/ $time): float
+    {
+        if (is_null($time)) {
+            return 0;
+        }
+        if (is_int($time) || is_float($time) || is_numeric($time)) {
+            return $time;
+        }
+
+        if (is_string($time)) {
+            $time = new DateTime($time);
+        }
+        return max(0, $time->format('U.v') - microtime(true));
     }
 
     protected function shareJob(?string $sharedFile, float $waittime, callable $select, ?float $now = null): array

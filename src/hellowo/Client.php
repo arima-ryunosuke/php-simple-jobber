@@ -49,26 +49,26 @@ class Client extends API
         return $this->driver->isStandby();
     }
 
-    public function send($contents, ?int $priority = null, ?float $delay = null): ?string
+    public function send($contents, ?int $priority = null, $time = null): ?string
     {
         $this->logger->info("send: {$this->logString(get_defined_vars())}");
-        $id = $this->driver->send($this->messageString($contents), $priority, $delay);
+        $id = $this->driver->send($this->messageString($contents), $priority, $time);
         $this->listener->onSend($id);
-        if (!$delay) {
+        if (!$time) {
             $this->driver->notify(1);
         }
         return $id;
     }
 
-    public function sendBulk(iterable $contents, ?int $priority = null, ?float $delay = null): array
+    public function sendBulk(iterable $contents, ?int $priority = null, $time = null): array
     {
         $this->logger->info("sendBulk: {$this->logString(get_defined_vars())}");
         $ids = [];
         foreach ($contents as $content) {
-            $ids[] = $id = $this->driver->send($this->messageString($content), $priority, $delay);
+            $ids[] = $id = $this->driver->send($this->messageString($content), $priority, $time);
             $this->listener->onSend($id);
         }
-        if (!$delay && $ids) {
+        if (!$time && $ids) {
             $this->driver->notify(count($ids));
         }
         return $ids;

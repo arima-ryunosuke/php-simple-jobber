@@ -27,7 +27,7 @@ class ClientTest extends AbstractTestCase
                 $this->data = [];
             }
 
-            protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
+            protected function send(string $contents, ?int $priority = null, $time = null): ?string
             {
                 $this->data[] = get_defined_vars();
                 return count($this->data) - 1;
@@ -82,7 +82,7 @@ class ClientTest extends AbstractTestCase
         $client->notify()->is(0);
         $client->send(['t' => 1234567890])->is(3);
         $client->notify()->is(0);
-        $client->sendBulk((function (){
+        $client->sendBulk((function () {
             yield 'data-11';
             yield 'data-12';
             yield ['data-json'];
@@ -94,37 +94,37 @@ class ClientTest extends AbstractTestCase
             [
                 "contents" => "data-0",
                 "priority" => null,
-                "delay"    => null,
+                "time"     => null,
             ],
             [
                 "contents" => "data-1",
                 "priority" => 1,
-                "delay"    => 1.0,
+                "time"     => 1.0,
             ],
             [
                 "contents" => "data-2",
                 "priority" => 2,
-                "delay"    => 2.0,
+                "time"     => 2.0,
             ],
             [
                 "contents" => '{"t":1234567890}',
                 "priority" => null,
-                "delay"    => null,
+                "time"     => null,
             ],
             [
                 "contents" => "data-11",
                 "priority" => 2,
-                "delay"    => null,
+                "time"     => null,
             ],
             [
                 "contents" => "data-12",
                 "priority" => 2,
-                "delay"    => null,
+                "time"     => null,
             ],
             [
                 "contents" => '["data-json"]',
                 "priority" => 2,
-                "delay"    => null,
+                "time"     => null,
             ],
         ]);
 

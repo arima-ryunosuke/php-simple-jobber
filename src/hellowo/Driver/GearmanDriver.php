@@ -131,12 +131,12 @@ class GearmanDriver extends AbstractDriver
         gc_collect_cycles();
     }
 
-    protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
+    protected function send(string $contents, ?int $priority = null, $time = null): ?string
     {
         return $this->doBackgroundMethod($priority)($this->function, $this->encode([
             'contents' => $contents,
             'priority' => $priority,
-            'start_at' => microtime(true) + ceil($delay ?? 0),
+            'start_at' => microtime(true) + ceil($this->getDelay($time)),
         ]));
     }
 
