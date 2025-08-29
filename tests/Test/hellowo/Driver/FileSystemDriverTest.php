@@ -23,7 +23,7 @@ class FileSystemDriverTest extends AbstractTestCase
 
     function test_lifecycle()
     {
-        $this->lifecycle(1, true);
+        $this->lifecycle(1);
 
         $driver = that(AbstractDriver::create(self::DRIVER_URL));
         that(glob($driver->directory->return() . "/.dead/*"))->count(1);

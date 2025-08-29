@@ -20,6 +20,6 @@ class BeanstalkDriverTest extends AbstractTestCase
 
     function test_lifecycle()
     {
-        $this->lifecycle(0, true);
+        $this->lifecycle(0);
     }
 }

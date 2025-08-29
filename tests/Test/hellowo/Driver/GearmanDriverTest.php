@@ -21,7 +21,7 @@ class GearmanDriverTest extends AbstractTestCase
 
     function test_lifecycle()
     {
-        $this->lifecycle(1, false);
+        $this->lifecycle(1);
     }
 
     function test_close()

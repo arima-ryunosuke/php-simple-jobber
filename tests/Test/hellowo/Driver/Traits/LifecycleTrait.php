@@ -7,7 +7,7 @@ use ryunosuke\hellowo\Driver\AbstractDriver;
 
 trait LifecycleTrait
 {
-    function lifecycle(?int $retry, bool $delay)
+    function lifecycle(?int $retry)
     {
         $driver = that(AbstractDriver::create(self::DRIVER_URL, [
             'waittime' => 1,
@@ -24,9 +24,9 @@ trait LifecycleTrait
 
         $driver->send('B', 1);
         $driver->send('A', 2);
-        if ($delay) {
-            $driver->send('X', null, 10);
-        }
+        $driver->send('X', null, 10);
+
+        $start = time();
 
         $generator = $driver->select();
         $message   = $generator->current();
@@ -55,9 +55,15 @@ trait LifecycleTrait
         sleep(3);
         $generator = $driver->select();
         $message   = $generator->current();
-        $message->getRetry()->is($retry);
         $message->getContents()->is('C');
+        $message->getRetry()->is($retry);
         $generator->send(new Exception('errored'));
+
+        time_sleep_until($start + 11);
+        $generator = $driver->select();
+        $message   = $generator->current();
+        $message->getContents()->is('X');
+        $generator->send(null);
 
         $driver->error(new Exception())->isFalse();
 

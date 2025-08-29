@@ -38,6 +38,7 @@ class GearmanDriver extends AbstractDriver
     private GearmanWorker $worker;
 
     private array $buffer = [];
+    private array $afters = [];
 
     public function __construct(array $options)
     {
@@ -83,12 +84,19 @@ class GearmanDriver extends AbstractDriver
     protected function select(): Generator
     {
         if (!$this->buffer) {
+            foreach ($this->afters as $id => $job) {
+                if ($job['start_at'] <= microtime(true)) {
+                    unset($this->afters[$id]);
+                    $this->buffer[$id] = $job;
+                }
+            }
+
             $this->worker->work();
 
             foreach ($this->buffer as $id => $job) {
                 if ($job['start_at'] > microtime(true)) {
                     unset($this->buffer[$id]);
-                    $this->doBackgroundMethod($job['priority'])($this->function, $this->encode($job));
+                    $this->afters[$id] = $job;
                 }
             }
         }
@@ -101,8 +109,8 @@ class GearmanDriver extends AbstractDriver
             elseif (is_int($result) || is_float($result)) {
                 unset($this->buffer[$id]);
                 $job['retry']++;
-                $job['start_at'] = microtime(true) + $result;
-                $this->doBackgroundMethod($job['priority'])($this->function, $this->encode($job));
+                $job['start_at']   = microtime(true) + $result;
+                $this->afters[$id] = $job;
             }
             else {
                 unset($this->buffer[$id]);
@@ -120,7 +128,7 @@ class GearmanDriver extends AbstractDriver
 
     protected function close(): void
     {
-        foreach ($this->buffer as $job) {
+        foreach ($this->afters + $this->buffer as $job) {
             $this->doBackgroundMethod($job['priority'])($this->function, $this->encode($job));
         }
         unset($this->client);

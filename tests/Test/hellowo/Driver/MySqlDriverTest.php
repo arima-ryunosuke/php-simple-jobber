@@ -33,7 +33,7 @@ class MySqlDriverTest extends AbstractTestCase
 
     function test_lifecycle()
     {
-        $this->lifecycle(1, true);
+        $this->lifecycle(1);
 
         $driver = that(AbstractDriver::create(self::DRIVER_URL));
         $driver->execute("SELECT * FROM {$driver->table->return()} WHERE error IS NOT NULL")->count(0);
