@@ -141,12 +141,12 @@ class Worker extends API
                         }
                         catch (TimeoutException $e) {
                             $this->logger->warning("[$mypid]timeout: {$this->logString("elapsed {$e->getElapsed($microtime)} seconds")}");
-                            $generator->send(null);
+                            $generator->send($e);
                             $this->listener->onTimeout($message, $e);
                         }
                         catch (Exception $e) {
                             $this->logger->error("[$mypid]fail: {$this->logString($e)}");
-                            $generator->send(null);
+                            $generator->send($e);
                             $this->listener->onFail($message, $e);
                         }
                     }

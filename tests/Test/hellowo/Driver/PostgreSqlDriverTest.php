@@ -9,6 +9,7 @@ use ryunosuke\Test\AbstractTestCase;
 class PostgreSqlDriverTest extends AbstractTestCase
 {
     use Traits\CancelTrait;
+    use Traits\DeadmodeTrait;
     use Traits\LifecycleTrait;
     use Traits\ShareJobTrait;
     use Traits\SleepTrait;
@@ -26,6 +27,15 @@ class PostgreSqlDriverTest extends AbstractTestCase
     function test_lifecycle()
     {
         $this->lifecycle(1, true);
+
+        $driver = that(AbstractDriver::create(self::DRIVER_URL));
+        $driver->execute("SELECT * FROM {$driver->table->return()} WHERE error IS NOT NULL")->count(0);
+    }
+
+    function test_dead()
+    {
+        $this->dead_column();
+        $this->dead_table();
     }
 
     function test_transaction()

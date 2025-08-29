@@ -40,6 +40,7 @@ class MySqlDriver extends AbstractDriver
     private ?float  $starttime;
     private float   $waittime;
     private string  $waitmode;
+    private string  $deadmode;
     private bool    $trigger;
     private ?string $sharedFile;
 
@@ -68,6 +69,8 @@ class MySqlDriver extends AbstractDriver
             'waittime'   => 10.0,
             // sql: use SELECT SLEEP(), php: call usleep
             'waitmode'   => 'sql',
+            // table: insert error table, column: update error column
+            'deadmode'   => '',
             // sharing job filename
             'sharedFile' => null,
             // create awake trigger after insert (sql mode only)
@@ -96,6 +99,7 @@ class MySqlDriver extends AbstractDriver
         $this->waittime   = $options['waittime'];
         $this->waitmode   = $options['waitmode'];
         $this->trigger    = $options['trigger'] && $options['waitmode'] === 'sql';
+        $this->deadmode   = $options['deadmode'];
         $this->sharedFile = $options['sharedFile'];
 
         $this->heartbeat      = $options['heartbeat'];
@@ -114,6 +118,7 @@ class MySqlDriver extends AbstractDriver
             $this->connection->query("DROP TRIGGER IF EXISTS {$this->table}_awake_trigger");
             $this->connection->query("DROP FUNCTION IF EXISTS {$this->table}_awake");
             $this->connection->query("DROP TABLE IF EXISTS {$this->table}");
+            $this->connection->query("DROP TABLE IF EXISTS {$this->table}_dead");
         }
 
         // table
@@ -123,11 +128,25 @@ class MySqlDriver extends AbstractDriver
                 job_data  JSON NOT NULL,
                 priority  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
                 start_at  DATETIME(3) NOT NULL DEFAULT NOW(3),
+                error     LONGTEXT DEFAULT NULL,
                 PRIMARY KEY (job_id),
                 INDEX IDX_SELECT (start_at, priority)
             )
             SQL
         );
+        if ($this->deadmode === 'table') {
+            $this->connection->query(<<<SQL
+                CREATE TABLE IF NOT EXISTS {$this->table}_dead(
+                    job_id    BIGINT UNSIGNED NOT NULL,
+                    message   JSON NOT NULL,
+                    priority  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+                    start_at  DATETIME(3) NOT NULL DEFAULT NOW(3),
+                    error     LONGTEXT DEFAULT NULL,
+                    PRIMARY KEY (job_id)
+                )
+                SQL
+            );
+        }
 
         if ($this->waitmode === 'sql') {
             // function
@@ -218,14 +237,23 @@ class MySqlDriver extends AbstractDriver
                     continue;
                 }
 
-                $job   = $this->decode($row['job_data']);
-                $retry = yield new Message($job_id, $job['contents'], $job['retry']);
-                if ($retry === null) {
+                $job    = $this->decode($row['job_data']);
+                $result = yield new Message($job_id, $job['contents'], $job['retry']);
+                if ($result === null) {
                     $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job_id]);
                 }
-                else {
+                elseif (is_int($result) || is_float($result)) {
                     $job['retry']++;
-                    $this->execute("UPDATE {$this->table} SET job_data = ?, start_at = NOW(3) + INTERVAL ? SECOND WHERE job_id = ?", [$this->encode($job), $retry, $job_id]);
+                    $this->execute("UPDATE {$this->table} SET job_data = ?, start_at = NOW(3) + INTERVAL ? SECOND WHERE job_id = ?", [$this->encode($job), $result, $job_id]);
+                }
+                else {
+                    if ($this->deadmode === 'table') {
+                        $this->execute("INSERT INTO {$this->table}_dead SELECT job_id, job_data, priority, start_at, ? FROM {$this->table} WHERE job_id = ?", ["$result", $job_id]);
+                        $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job_id]);
+                    }
+                    elseif ($this->deadmode === 'column') {
+                        $this->execute("UPDATE {$this->table} SET error = ? WHERE job_id = ?", ["$result", $job_id]);
+                    }
                 }
                 $this->unshareJob($this->sharedFile, $job_id);
                 $this->connection->commit();
@@ -281,7 +309,7 @@ class MySqlDriver extends AbstractDriver
         $this->connection->begin_transaction();
         try {
             // cannot cancel items already in progress
-            $where  = 'WHERE FALSE';
+            $where  = 'FALSE';
             $params = [];
             if ($job_id !== null) {
                 $where    .= ' OR job_id = ?';
@@ -291,7 +319,7 @@ class MySqlDriver extends AbstractDriver
                 $where    .= ' OR job_data->>"$.contents" = ?';
                 $params[] = $contents;
             }
-            $job_ids = array_column($this->execute("SELECT job_id FROM {$this->table} $where FOR UPDATE SKIP LOCKED", $params, false), 'job_id');
+            $job_ids = array_column($this->execute("SELECT job_id FROM {$this->table} WHERE error IS NULL AND ($where) FOR UPDATE SKIP LOCKED", $params, false), 'job_id');
 
             $count = 0;
             if ($job_ids) {
@@ -393,7 +421,7 @@ class MySqlDriver extends AbstractDriver
             $limit = "LIMIT $limit";
         }
 
-        return "SELECT $column FROM {$this->table} WHERE start_at <= NOW(3) ORDER BY priority DESC, job_id ASC $limit FOR UPDATE SKIP LOCKED";
+        return "SELECT $column FROM {$this->table} WHERE start_at <= NOW(3) AND error IS NULL ORDER BY priority DESC, job_id ASC $limit FOR UPDATE SKIP LOCKED";
     }
 
     protected function execute(string $query, array $bind = [], bool $cachePrepare = true)

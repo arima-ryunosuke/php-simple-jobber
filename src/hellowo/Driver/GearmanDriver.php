@@ -32,6 +32,7 @@ class GearmanDriver extends AbstractDriver
     private string $host;
     private int    $port;
     private string $function;
+    private string $function_dead;
 
     private GearmanClient $client;
     private GearmanWorker $worker;
@@ -52,9 +53,10 @@ class GearmanDriver extends AbstractDriver
             'waittime'  => 10.0,
         ]);
 
-        $this->host     = $options['transport']['host'];
-        $this->port     = $options['transport']['port'];
-        $this->function = $options['function'];
+        $this->host          = $options['transport']['host'];
+        $this->port          = $options['transport']['port'];
+        $this->function      = $options['function'];
+        $this->function_dead = $options['function'] . '_dead';
 
         // client
         $this->client = new GearmanClient();
@@ -86,21 +88,26 @@ class GearmanDriver extends AbstractDriver
             foreach ($this->buffer as $id => $job) {
                 if ($job['start_at'] > microtime(true)) {
                     unset($this->buffer[$id]);
-                    $this->doBackgroundMethod($job['priority'])($this->encode($job));
+                    $this->doBackgroundMethod($job['priority'])($this->function, $this->encode($job));
                 }
             }
         }
 
         foreach ($this->buffer as $id => $job) {
-            $retry = yield new Message($id, $job['contents'], $job['retry']);
-            if ($retry === null) {
+            $result = yield new Message($id, $job['contents'], $job['retry']);
+            if ($result === null) {
                 unset($this->buffer[$id]);
+            }
+            elseif (is_int($result) || is_float($result)) {
+                unset($this->buffer[$id]);
+                $job['retry']++;
+                $job['start_at'] = microtime(true) + $result;
+                $this->doBackgroundMethod($job['priority'])($this->function, $this->encode($job));
             }
             else {
                 unset($this->buffer[$id]);
-                $job['retry']++;
-                $job['start_at'] = microtime(true) + $retry;
-                $this->doBackgroundMethod($job['priority'])($this->encode($job));
+                $job['error'] = (string) $result;
+                $this->doBackgroundMethod($job['priority'])($this->function_dead, $this->encode($job));
             }
             return;
         }
@@ -114,7 +121,7 @@ class GearmanDriver extends AbstractDriver
     protected function close(): void
     {
         foreach ($this->buffer as $job) {
-            $this->doBackgroundMethod($job['priority'])($this->encode($job));
+            $this->doBackgroundMethod($job['priority'])($this->function, $this->encode($job));
         }
         unset($this->client);
 
@@ -126,7 +133,7 @@ class GearmanDriver extends AbstractDriver
 
     protected function send(string $contents, ?int $priority = null, ?float $delay = null): ?string
     {
-        return $this->doBackgroundMethod($priority)($this->encode([
+        return $this->doBackgroundMethod($priority)($this->function, $this->encode([
             'contents' => $contents,
             'priority' => $priority,
             'start_at' => microtime(true) + ceil($delay ?? 0),
@@ -160,6 +167,6 @@ class GearmanDriver extends AbstractDriver
             1 => 'doBackground',
             2 => 'doHighBackground',
         ];
-        return fn(string $workload) => $this->client->{$methods[$priority ?? 1]}($this->function, $workload);
+        return fn(string $function, string $workload) => $this->client->{$methods[$priority ?? 1]}($function, $workload);
     }
 }

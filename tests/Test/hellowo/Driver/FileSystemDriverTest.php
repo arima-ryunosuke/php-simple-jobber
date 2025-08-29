@@ -2,6 +2,7 @@
 
 namespace ryunosuke\Test\hellowo\Driver;
 
+use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\hellowo\Driver\FileSystemDriver;
 use ryunosuke\Test\AbstractTestCase;
 
@@ -23,6 +24,9 @@ class FileSystemDriverTest extends AbstractTestCase
     function test_lifecycle()
     {
         $this->lifecycle(1, true);
+
+        $driver = that(AbstractDriver::create(self::DRIVER_URL));
+        that(glob($driver->directory->return() . "/.dead/*"))->count(1);
     }
 
     function test_mkdir()

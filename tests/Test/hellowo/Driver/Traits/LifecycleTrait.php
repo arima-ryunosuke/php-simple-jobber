@@ -57,7 +57,7 @@ trait LifecycleTrait
         $message   = $generator->current();
         $message->getRetry()->is($retry);
         $message->getContents()->is('C');
-        $generator->send(null);
+        $generator->send(new Exception('errored'));
 
         $driver->error(new Exception())->isFalse();
 

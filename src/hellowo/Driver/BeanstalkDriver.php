@@ -58,13 +58,16 @@ class BeanstalkDriver extends AbstractDriver
     {
         $pheanstalkJob = $this->connection->reserveWithTimeout(ceil($this->waittime));
         if ($pheanstalkJob) {
-            $job   = $this->decode($pheanstalkJob->getData());
-            $retry = yield new Message($pheanstalkJob->getId(), $job['contents'], 0);
-            if ($retry === null) {
+            $job    = $this->decode($pheanstalkJob->getData());
+            $result = yield new Message($pheanstalkJob->getId(), $job['contents'], 0);
+            if ($result === null) {
                 $this->connection->delete($pheanstalkJob);
             }
+            elseif (is_int($result) || is_float($result)) {
+                $this->connection->release($pheanstalkJob, PheanstalkInterface::DEFAULT_PRIORITY, ceil($result));
+            }
             else {
-                $this->connection->release($pheanstalkJob, PheanstalkInterface::DEFAULT_PRIORITY, ceil($retry));
+                $this->connection->bury($pheanstalkJob);
             }
         }
     }

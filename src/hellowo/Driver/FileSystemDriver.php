@@ -34,6 +34,7 @@ class FileSystemDriver extends AbstractDriver
     private string $directory;
     private string $extension;
     private string $working;
+    private string $dead;
 
     private ?float $starttime;
     private float  $waittime;
@@ -65,6 +66,7 @@ class FileSystemDriver extends AbstractDriver
         $this->directory = $options['directory'];
         $this->extension = $options['extension'];
         $this->working   = "$this->directory/.working";
+        $this->dead      = "$this->directory/.dead";
 
         $this->starttime = $options['starttime'];
         $this->waittime  = $options['waittime'];
@@ -91,6 +93,9 @@ class FileSystemDriver extends AbstractDriver
         }
         if (!file_exists($this->working)) {
             @mkdir($this->working, 0777, true);
+        }
+        if (!file_exists($this->dead)) {
+            @mkdir($this->dead, 0777, true);
         }
     }
 
@@ -121,16 +126,21 @@ class FileSystemDriver extends AbstractDriver
 
                 // renames fail at race condition
                 if (@rename($filepath, $workfile)) {
-                    $job   = $this->decode(file_get_contents($workfile));
-                    $retry = yield new Message(basename($filepath), $job['contents'], $job['retry']);
-                    if ($retry === null) {
+                    $job    = $this->decode(file_get_contents($workfile));
+                    $result = yield new Message(basename($filepath), $job['contents'], $job['retry']);
+                    if ($result === null) {
                         unlink($workfile);
                     }
-                    else {
+                    elseif (is_int($result) || is_float($result)) {
                         $job['retry']++;
                         file_put_contents($workfile, $this->encode($job));
                         rename($workfile, $filepath);
-                        touch($filepath, ceil(time() + $retry));
+                        touch($filepath, ceil(time() + $result));
+                    }
+                    else {
+                        $job['error'] = (string) $result;
+                        file_put_contents("$this->dead/" . basename($filepath), json_encode($job));
+                        unlink($workfile);
                     }
                     return;
                 }

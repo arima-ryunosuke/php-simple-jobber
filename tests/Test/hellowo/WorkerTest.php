@@ -54,12 +54,16 @@ class WorkerTest extends AbstractTestCase
             {
                 try {
                     $message = ($this->select)($this->count++);
-                    $retry   = yield $message;
-                    if ($retry === null) {
+                    $result  = yield $message;
+                    if ($result === null) {
                         // done
                     }
-                    else {
+                    elseif (is_int($result) || is_float($result)) {
+                        // retry
                         $this->count--;
+                    }
+                    else {
+                        // fail
                     }
                 }
                 catch (Throwable $t) {
