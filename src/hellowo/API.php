@@ -116,7 +116,7 @@ abstract class API
     /**
      * send message
      *
-     * @param string $contents message body
+     * @param mixed $contents message body
      * @param ?int $priority the higher the value, the higher the priority
      * @param null|float|string|DateTimeInterface $time delay expression
      * @param int $timeout job timeout
