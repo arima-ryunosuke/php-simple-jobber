@@ -190,6 +190,10 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.2.1
+
+- [fixbug] client で文字列以外を send するときに IDE エラーが出る
+
 ### 1.2.0
 
 - [fixbug] gearman に未来 job を登録するとその間無限ループする
