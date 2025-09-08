@@ -180,7 +180,7 @@ class Worker extends API
             catch (Exception $e) {
                 $this->logger->error("[$mypid]exception: {$this->logString($e)}");
                 if ($this->driver->error($e)) {
-                    break;
+                    throw $e;
                 }
                 usleep(0.1 * 1000 * 1000);
             }

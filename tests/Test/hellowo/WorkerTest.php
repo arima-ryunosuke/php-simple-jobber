@@ -127,24 +127,29 @@ class WorkerTest extends AbstractTestCase
             'timeout'  => 1,
         ]);
 
-        $worker->start(function (Message $message) use ($stdout) {
-            // fail
-            if ($message->getContents() === "2") {
-                throw new Exception();
-            }
-            // timeout
-            if ($message->getContents() === "3") {
-                $this->sleep(5);
-            }
-            // retry
-            if ($message->getContents() === "4") {
-                static $retry_count = 0;
-                if ($retry_count++ < 3) {
-                    throw new RetryableException(0.1);
+        try {
+            $worker->start(function (Message $message) use ($stdout) {
+                // fail
+                if ($message->getContents() === "2") {
+                    throw new Exception();
                 }
-            }
-            file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
-        });
+                // timeout
+                if ($message->getContents() === "3") {
+                    $this->sleep(5);
+                }
+                // retry
+                if ($message->getContents() === "4") {
+                    static $retry_count = 0;
+                    if ($retry_count++ < 3) {
+                        throw new RetryableException(0.1);
+                    }
+                }
+                file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
+            });
+        }
+        catch (Throwable $t) {
+            that($t)->getMessage()->is('stop');
+        }
 
         // 1:through, 2:fail, 3:timeout, 4:fail but retry
         that($stdout)->fileEquals("45");
@@ -158,7 +163,7 @@ class WorkerTest extends AbstractTestCase
             '#^\\[\\d+\\]fail:#'     => 1,
             '#^\\[\\d+\\]timeout:#'  => 1,
             '#^\\[\\d+\\]retry:#'    => 3,
-            '#^\\[\\d+\\]end:#'      => 1,
+            '#^\\[\\d+\\]end:#'      => 0,
         ]);
 
         that($events)->isSame([
@@ -194,7 +199,14 @@ class WorkerTest extends AbstractTestCase
             'timeout'  => 1,
         ]);
 
-        $worker->start();
+        try {
+            $worker->start(function (Message $message) use ($stdout) {
+                file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
+            });
+        }
+        catch (Throwable $t) {
+            that($t)->getMessage()->is('stop');
+        }
 
         that($logs)->matchesCountEquals([
             '#^\\[\\d+\\]setup: caught#' => 1,
@@ -229,12 +241,6 @@ class WorkerTest extends AbstractTestCase
     {
         $logs   = [];
         $worker = new Worker([
-            'work'    => function (Message $message) {
-                if ($message->getContents() === "2") {
-                    posix::kill(getmypid(), pcntl::SIGTERM);
-                    $this->sleep(5);
-                }
-            },
             'driver'  => $this->createDriver(function ($count) {
                 if ($count === 1) {
                     posix::kill(getmypid(), pcntl::SIGUSR2);
@@ -253,7 +259,12 @@ class WorkerTest extends AbstractTestCase
             ],
         ]);
 
-        $worker->start();
+        $worker->start(function (Message $message) {
+            if ($message->getContents() === "2") {
+                posix::kill(getmypid(), pcntl::SIGTERM);
+                $this->sleep(5);
+            }
+        });
 
         that($logs)->contains(pcntl::SIGUSR2);
         that($logs)->notContains(pcntl::SIGTERM);
