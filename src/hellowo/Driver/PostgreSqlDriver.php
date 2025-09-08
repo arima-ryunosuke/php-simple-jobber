@@ -5,7 +5,7 @@ namespace ryunosuke\hellowo\Driver;
 use ErrorException;
 use Exception;
 use Generator;
-use RuntimeException;
+use ryunosuke\hellowo\Exception\DriverException;
 use ryunosuke\hellowo\Message;
 use Throwable;
 
@@ -144,7 +144,7 @@ class PostgreSqlDriver extends AbstractDriver
             });
             try {
                 if (in_array(pg_connection_status($this->connection), [false, PGSQL_CONNECTION_BAD], true)) {
-                    throw $e; // @codeCoverageIgnore
+                    DriverException::throw($e->getMessage(), $e->getCode(), $e); // @codeCoverageIgnore
                 }
             }
             finally {
@@ -194,7 +194,7 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function error(Exception $e): bool
     {
-        return !$this->execute('SELECT 1');
+        return $e instanceof DriverException;
     }
 
     protected function close(): void
@@ -321,32 +321,39 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function execute(string $query, array $bind = [], bool $cachePrepare = true)
     {
-        $stmtname = $this->statements[$query] ??= (function () use ($query) {
-            $stmtname  = 'hellowostmt' . count($this->statements);
-            $statement = pg_prepare($this->connection, $stmtname, $query);
-            if ($statement === false) {
-                throw new RuntimeException(pg_last_error($this->connection));
-            }
-            return $stmtname;
-        })();
+        set_error_handler(fn() => DriverException::throw(@pg_last_error($this->connection)));
 
-        $result = pg_execute($this->connection, $stmtname, $bind);
-        if ($result === false) {
-            throw new RuntimeException(pg_last_error($this->connection));
-        }
         try {
-            if (pg_num_fields($result)) {
-                return pg_fetch_all($result, PGSQL_ASSOC) ?: []; // under php8.1 empty set returns false
+            $stmtname = $this->statements[$query] ??= (function () use ($query) {
+                $stmtname  = 'hellowostmt' . count($this->statements);
+                $statement = pg_prepare($this->connection, $stmtname, $query);
+                assert(is_object($statement) || is_resource($statement));
+                return $stmtname;
+            })();
+
+            $result = pg_execute($this->connection, $stmtname, $bind);
+            try {
+                if (pg_num_fields($result)) {
+                    return pg_fetch_all($result, PGSQL_ASSOC) ?: []; // under php8.1 empty set returns false
+                }
+                return pg_affected_rows($result);
             }
-            return pg_affected_rows($result);
+            finally {
+                pg_free_result($result);
+
+                if (!$cachePrepare) {
+                    pg_query($this->connection, "DEALLOCATE $stmtname");
+                    unset($this->statements[$query]);
+                }
+            }
         }
         finally {
-            pg_free_result($result);
-
-            if (!$cachePrepare) {
-                pg_query($this->connection, "DEALLOCATE $stmtname");
-                unset($this->statements[$query]);
-            }
+            restore_error_handler();
         }
+    }
+
+    protected function query(string $query)
+    {
+        return pg_query($this->connection, $query);
     }
 }
