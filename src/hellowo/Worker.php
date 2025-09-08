@@ -116,6 +116,7 @@ class Worker extends API
 
                 // when standby is released, restart for initialization
                 if ($stoodby) {
+                    $this->listener->onStandup($this->driver);
                     throw new ExitException("standby is released", 1);
                 }
 

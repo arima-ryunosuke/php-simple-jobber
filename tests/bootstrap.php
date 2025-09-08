@@ -1,6 +1,7 @@
 <?php
 
 use Psr\Log\AbstractLogger;
+use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\hellowo\Listener\AbstractListener;
 use ryunosuke\hellowo\Message;
 use ryunosuke\PHPUnit\Actual;
@@ -85,6 +86,11 @@ class ArrayListener extends AbstractListener
     public function onBreather(int $cycle): void
     {
         $this->events['breather'][] = $cycle;
+    }
+
+    public function onStandup(AbstractDriver $driver): void
+    {
+        $this->events['standup'][] = $driver;
     }
 
     public function onCycle(int $cycle): void

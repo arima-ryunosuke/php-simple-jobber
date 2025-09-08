@@ -235,6 +235,7 @@ class WorkerTest extends AbstractTestCase
         that($logs)->matchesCountEquals([
             '#^\\[\\d+\\]sleep:#' => 2,
         ]);
+        that($events)->hasKey("standup");
     }
 
     function test_signal()
