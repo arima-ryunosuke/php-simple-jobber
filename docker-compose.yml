@@ -22,7 +22,6 @@ services:
       - 23306:3306
   pgsql:
     image: docker.io/postgres:16.4
-    container_name: pgsql
     environment:
       POSTGRES_DB: hellowo
       POSTGRES_USER: user
