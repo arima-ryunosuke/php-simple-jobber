@@ -3,9 +3,9 @@
 namespace ryunosuke\Test\hellowo\Driver;
 
 use mysqli;
-use mysqli_sql_exception;
 use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\hellowo\Driver\MySqlDriver;
+use ryunosuke\hellowo\Exception\DriverException;
 use ryunosuke\Test\AbstractTestCase;
 
 class MySqlDriverTest extends AbstractTestCase
@@ -48,6 +48,7 @@ class MySqlDriverTest extends AbstractTestCase
     function test_transaction()
     {
         $this->transaction();
+        $this->select_error();
     }
 
     function test_isStandby()
@@ -63,12 +64,12 @@ class MySqlDriverTest extends AbstractTestCase
         $driver->isStandby()->isTrue();
 
         mysqli_report(MYSQLI_REPORT_ERROR);
-        set_error_handler(function () { throw new mysqli_sql_exception('', 2006); });
+        set_error_handler(function () { throw new DriverException('', 2006); });
         try {
             $driver->use('isStandby')();
             $this->fail('not thrown mysqli_sql_exception');
         }
-        catch (mysqli_sql_exception $e) {
+        catch (DriverException $e) {
             that($e)->getCode()->is(2006);
         }
         finally {

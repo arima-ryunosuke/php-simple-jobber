@@ -7,6 +7,7 @@ use Generator;
 use mysqli;
 use mysqli_result;
 use mysqli_sql_exception;
+use ryunosuke\hellowo\Exception\DriverException;
 use ryunosuke\hellowo\Message;
 use Throwable;
 
@@ -89,7 +90,7 @@ class MySqlDriver extends AbstractDriver
             $this->transport       = $transport;
             $transport             = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $transport));
             if ($transport->connect_errno) {
-                throw new mysqli_sql_exception($transport->connect_error, $transport->connect_errno);
+                DriverException::throw($transport->connect_error, $transport->connect_errno);
             }
         }
         $this->connection = $transport;
@@ -214,7 +215,7 @@ class MySqlDriver extends AbstractDriver
             $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [-1]);
             return false;
         }
-        catch (mysqli_sql_exception $e) {
+        catch (DriverException $e) {
             if ($e->getCode() === 2006) {
                 throw $e;
             }
@@ -271,7 +272,7 @@ class MySqlDriver extends AbstractDriver
 
     protected function error(Exception $e): bool
     {
-        return !$this->execute('SELECT 1');
+        return $e instanceof DriverException;
     }
 
     protected function close(): void
@@ -434,39 +435,49 @@ class MySqlDriver extends AbstractDriver
             $this->connection->reap_async_query();
         }
 
-        $statement = $this->statements[$query] ??= $this->connection->prepare($query);
-        if ($bind) {
-            $statement->bind_param(str_repeat('s', count($bind)), ...array_values($bind));
+        try {
+            $statement = $this->statements[$query] ??= $this->connection->prepare($query);
+            if ($bind) {
+                $statement->bind_param(str_repeat('s', count($bind)), ...array_values($bind));
+            }
+
+            // rety. because query may be killed when also not SLEEP at race condition
+            $retry = 3;
+            for ($i = 1; $i <= $retry; $i++) {
+                try {
+                    $statement->execute();
+                    $result = $statement->get_result();
+                    if ($result instanceof mysqli_result) {
+                        $all = $result->fetch_all(MYSQLI_ASSOC);
+                        $result->free_result();
+                        return $all;
+                    }
+                    return $statement->affected_rows;
+                }
+                catch (mysqli_sql_exception $e) {
+                    if ($i < $retry && $e->getCode() === 1317 && strpos($e->getMessage(), "Query execution was interrupted") !== false) {
+                        continue;
+                    }
+
+                    throw $e;
+                }
+                finally {
+                    $statement->free_result();
+
+                    if (!$cachePrepare) {
+                        $statement->close();
+                        unset($this->statements[$query]);
+                    }
+                }
+            }
         }
-
-        // rety. because query may be killed when also not SLEEP at race condition
-        $retry = 3;
-        for ($i = 1; $i <= $retry; $i++) {
-            try {
-                $statement->execute();
-                $result = $statement->get_result();
-                if ($result instanceof mysqli_result) {
-                    $all = $result->fetch_all(MYSQLI_ASSOC);
-                    $result->free_result();
-                    return $all;
-                }
-                return $statement->affected_rows;
-            }
-            catch (mysqli_sql_exception $e) {
-                if ($i < $retry && $e->getCode() === 1317 && strpos($e->getMessage(), "Query execution was interrupted") !== false) {
-                    continue;
-                }
-
-                throw $e;
-            }
-            finally {
-                $statement->free_result();
-
-                if (!$cachePrepare) {
-                    $statement->close();
-                    unset($this->statements[$query]);
-                }
-            }
+        catch (mysqli_sql_exception $e) {
+            DriverException::throw($e->getMessage(), $e->getCode(), $e);
         }
+    }
+
+    protected function query(string $query)
+    {
+        return $this->connection->query($query);
     }
 }

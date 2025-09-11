@@ -4,6 +4,7 @@ namespace ryunosuke\Test\hellowo\Driver\Traits;
 
 use Exception;
 use ryunosuke\hellowo\Driver\AbstractDriver;
+use ryunosuke\hellowo\Exception\DriverException;
 
 trait TransactionTrait
 {
@@ -49,5 +50,21 @@ trait TransactionTrait
         $driver->execute("SELECT * FROM {$original}")->count(1); // rollbacked
 
         $driver->close();
+    }
+
+    function select_error()
+    {
+        $driver = that(AbstractDriver::create(self::DRIVER_URL));
+        $driver->setup(true);
+
+        $driver->query('START TRANSACTION READ ONLY');
+        try {
+            $job = $driver->select()->current();
+            $job->isInstanceOf(DriverException::class);
+            that($driver->error($job->return()));
+        }
+        finally {
+            $driver->query('ROLLBACK');
+        }
     }
 }

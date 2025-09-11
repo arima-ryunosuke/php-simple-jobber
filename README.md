@@ -208,6 +208,13 @@ Versioning is romantic versioning(no semantic versioning).
 - [*change] drop deprecated
 - [tests] 意味の分からないコードがあったので除去
 
+### 1.1.11
+
+- [change] ブランチ切り替えがしんどいので docker-compose の変更をバックポート
+- [feature] standup イベントを追加
+- [fixbug] readonly 状態では SELECT FOR UPDATE を投げられない
+- [fixbug] エラー時は正常終了ではなく異常終了で systemd の再起動を促す
+
 ### 1.1.10
 
 - [feature] breather イベントを追加

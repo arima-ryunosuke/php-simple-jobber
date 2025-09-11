@@ -41,6 +41,7 @@ class PostgreSqlDriverTest extends AbstractTestCase
     function test_transaction()
     {
         $this->transaction();
+        $this->select_error();
     }
 
     function test_isStandby()
