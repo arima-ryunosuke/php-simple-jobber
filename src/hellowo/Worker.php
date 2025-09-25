@@ -159,6 +159,10 @@ class Worker extends API
                             $generator->send(null);
                             $this->listener->onFail($message, $e);
                         }
+                        finally {
+                            $this->logger->info("[$mypid]finish: {$this->logString(microtime(true) - $microtime)} seconds");
+                            $this->listener->onFinish($message);
+                        }
                     }
                 }
                 catch (Throwable $t) {

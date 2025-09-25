@@ -163,6 +163,7 @@ class WorkerTest extends AbstractTestCase
             '#^\\[\\d+\\]fail:#'     => 1,
             '#^\\[\\d+\\]timeout:#'  => 1,
             '#^\\[\\d+\\]retry:#'    => 3,
+            '#^\\[\\d+\\]finish:#'   => null,
             '#^\\[\\d+\\]end:#'      => 0,
         ]);
 
@@ -170,6 +171,7 @@ class WorkerTest extends AbstractTestCase
             "breather" => [0],
             "cycle"    => [0, 1, 2, 3, 4, 5, 6, 7],
             "fail"     => ["2"],
+            "finish"   => ["2", "3", "4", "4", "4", "4", "5"],
             "timeout"  => ["3"],
             "retry"    => ["4", "4", "4"],
             "done"     => ["4", "5"],

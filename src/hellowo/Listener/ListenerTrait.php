@@ -18,6 +18,8 @@ trait ListenerTrait
 
     public function onTimeout(Message $message, Throwable $t): void { }
 
+    public function onFinish(Message $message): void { }
+
     public function onBreather(int $cycle): void { }
 
     public function onStandup(AbstractDriver $driver): void { }

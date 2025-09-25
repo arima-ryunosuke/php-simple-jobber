@@ -83,6 +83,11 @@ class ArrayListener extends AbstractListener
         $this->events['timeout'][] = $message->getId();
     }
 
+    public function onFinish(Message $message): void
+    {
+        $this->events['finish'][] = $message->getId();
+    }
+
     public function onBreather(int $cycle): void
     {
         $this->events['breather'][] = $cycle;
