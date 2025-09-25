@@ -331,6 +331,31 @@ class WorkerTest extends AbstractTestCase
         ]);
     }
 
+    function test_continuity()
+    {
+        $worker = new Worker([
+            'driver'  => $this->createDriver(function ($count) {
+                if ($count > 256) {
+                    posix::kill(getmypid(), pcntl::SIGTERM);
+                }
+                return new Message($count, $count, 0);
+            }),
+            'logger'  => new ArrayLogger($logs),
+            'signals' => [],
+        ]);
+
+        $worker->start(function () { });
+
+        that($logs)->matchesCountEquals([
+            '#^\\[\\d+\\]continue: 16#'  => 1,
+            '#^\\[\\d+\\]continue: 32#'  => 1,
+            '#^\\[\\d+\\]continue: 64#'  => 1,
+            '#^\\[\\d+\\]continue: 128#' => 1,
+            '#^\\[\\d+\\]continue: 256#' => 1,
+            '#^\\[\\d+\\]continue: 257#' => 1,
+        ]);
+    }
+
     function test_restart()
     {
         $worker = that(new Worker([
