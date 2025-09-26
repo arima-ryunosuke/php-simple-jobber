@@ -191,6 +191,11 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.1.12
+
+- [feature] 絶え間なくジョブが実行され続けたら警告を出す
+- [feature] 結果の如何にかかわらず job を検知して終了した場合のイベント finish を追加
+
 ### 1.1.11
 
 - [change] ブランチ切り替えがしんどいので docker-compose の変更をバックポート
