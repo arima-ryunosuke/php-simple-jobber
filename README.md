@@ -190,6 +190,10 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.2.3
+
+- Merge tag 'v1.1.12'
+
 ### 1.2.2
 
 - Merge tag 'v1.1.11'
