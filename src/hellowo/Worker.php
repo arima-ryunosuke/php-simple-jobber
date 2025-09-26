@@ -87,9 +87,11 @@ class Worker extends API
         }
 
         // main loop
-        $start   = microtime(true);
-        $cycle   = 0;
-        $stoodby = $this->driver->isStandby();
+        $start           = microtime(true);
+        $cycle           = 0;
+        $continuity      = 0;
+        $continuityLevel = 4;
+        $stoodby         = $this->driver->isStandby();
         $this->logger->info("[$mypid]begin: {$this->logString($cycle)}");
         while ($running) {
             try {
@@ -117,10 +119,12 @@ class Worker extends API
                     /** @var ?Message $message */
                     $message = $generator->current();
                     if ($message === null) {
+                        $continuity = 0;
                         $this->logger->debug("[$mypid]breather: {$this->logString($cycle)}");
                         $this->listener->onBreather($cycle);
                     }
                     else {
+                        $continuity++;
                         $this->logger->info("[$mypid]job: {$this->logString($message->getId())}");
 
                         try {
@@ -151,6 +155,10 @@ class Worker extends API
                             $generator->send($e);
                             $this->listener->onFail($message, $e);
                         }
+                        finally {
+                            $this->logger->info("[$mypid]finish: {$this->logString(microtime(true) - $microtime)} seconds");
+                            $this->listener->onFinish($message);
+                        }
                     }
                 }
                 catch (Throwable $t) {
@@ -160,7 +168,12 @@ class Worker extends API
                     unset($generator);
                 }
 
-                $this->logger->debug("[$mypid]cycle: {$this->logString($cycle)}");
+                if ($continuity >= 2 ** $continuityLevel) {
+                    $continuityLevel = min(8, ++$continuityLevel); // stop 256 limit
+                    $this->logger->warning("[$mypid]continue: {$this->logString($continuity)}");
+                }
+
+                $this->logger->debug("[$mypid]cycle: {$this->logString($cycle)}, continuity: {$this->logString($continuity)}");
                 $this->listener->onCycle($cycle);
                 pcntl::signal_dispatch();
                 gc_collect_cycles();
