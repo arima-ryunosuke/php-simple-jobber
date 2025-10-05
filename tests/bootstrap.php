@@ -91,9 +91,14 @@ class ArrayListener extends AbstractListener
         $this->events['finish'][] = $message->getId();
     }
 
-    public function onBreather(int $cycle): void
+    public function onBusy(int $continuity): void
     {
-        $this->events['breather'][] = $cycle;
+        $this->events['busy'][] = $continuity;
+    }
+
+    public function onIdle(int $continuity): void
+    {
+        $this->events['idle'][] = $continuity;
     }
 
     public function onStandup(AbstractDriver $driver): void

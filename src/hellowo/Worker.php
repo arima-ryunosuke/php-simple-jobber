@@ -91,7 +91,8 @@ class Worker extends API
         $cycle           = 0;
         $workload        = 0;
         $continuity      = 0;
-        $continuityLevel = 4;
+        $continuities    = [];
+        $continuityLevel = 0;
         $stoodby         = $this->driver->isStandby();
         $this->logger->info("[{mypid}]{event}: {cycle}", ['event' => 'begin', 'mypid' => $mypid, 'cycle' => $cycle]);
         while ($running) {
@@ -120,9 +121,7 @@ class Worker extends API
                     /** @var ?Message $message */
                     $message = $generator->current();
                     if ($message === null) {
-                        $continuity = 0;
-                        $this->logger->debug("[$mypid]breather: {$this->logString($cycle)}");
-                        $this->listener->onBreather($cycle);
+                        $continuity--;
                     }
                     else {
                         $workload++;
@@ -170,9 +169,21 @@ class Worker extends API
                     unset($generator);
                 }
 
-                if ($continuity >= 2 ** $continuityLevel) {
-                    $continuityLevel = min(8, ++$continuityLevel); // stop 256 limit
+                $continuity     = max(0, $continuity);
+                $continuities[] = $continuity;
+                $continuities   = array_slice($continuities, -11);
+
+                $ratio = $continuity - (array_sum($continuities) / count($continuities));
+                $level = array_values(array_filter([0, 1, 2, 3, 4, 5], fn($level) => $continuity < (2 ** ($level + 4))))[0] ?? 6;
+                if ($ratio > 0 && $level > $continuityLevel) {
+                    $continuityLevel = $level;
                     $this->logger->warning("[{mypid}]{event}: {continuity}/{continuityLevel}", ['event' => 'busy', 'mypid' => $mypid, 'continuity' => $continuity, 'continuityLevel' => $continuityLevel]);
+                    $this->listener->onBusy($continuity);
+                }
+                if ($ratio < 0 && $level < $continuityLevel) {
+                    $continuityLevel = $level;
+                    $this->logger->info("[{mypid}]{event}: {continuity}/{continuityLevel}", ['event' => 'idle', 'mypid' => $mypid, 'continuity' => $continuity, 'continuityLevel' => $continuityLevel]);
+                    $this->listener->onIdle($continuity);
                 }
 
                 $this->logger->debug("[{mypid}]{event}: {workload}/{cycle}, continuity: {continuity}", ['event' => 'cycle', 'mypid' => $mypid, 'cycle' => $cycle, 'workload' => $workload, 'continuity' => $continuity]);

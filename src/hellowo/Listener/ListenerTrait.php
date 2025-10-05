@@ -20,7 +20,15 @@ trait ListenerTrait
 
     public function onFinish(Message $message): void { }
 
-    public function onBreather(int $cycle): void { }
+    public function onBusy(int $continuity): void { }
+
+    public function onIdle(int $continuity): void { }
+
+    public function onBreather(int $continuity): void
+    {
+        // for compatible
+        $this->onIdle($continuity); // @codeCoverageIgnore
+    }
 
     public function onStandup(AbstractDriver $driver): void { }
 

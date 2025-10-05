@@ -159,26 +159,24 @@ class WorkerTest extends AbstractTestCase
         that($stdout)->fileEquals("45");
 
         that($logs)->matchesCountEquals([
-            '#^\\[\\d+\\]breather:#' => 1,
-            '#^\\[\\d+\\]start:#'    => 1,
-            '#^\\[\\d+\\]begin:#'    => 1,
-            '#^\\[\\d+\\]job:#'      => null,
-            '#^\\[\\d+\\]done:#'     => null,
-            '#^\\[\\d+\\]fail:#'     => 1,
-            '#^\\[\\d+\\]timeout:#'  => 1,
-            '#^\\[\\d+\\]retry:#'    => 3,
-            '#^\\[\\d+\\]finish:#'   => null,
-            '#^\\[\\d+\\]end:#'      => 0,
+            '#^\\[\\d+\\]start:#'   => 1,
+            '#^\\[\\d+\\]begin:#'   => 1,
+            '#^\\[\\d+\\]job:#'     => null,
+            '#^\\[\\d+\\]done:#'    => null,
+            '#^\\[\\d+\\]fail:#'    => 1,
+            '#^\\[\\d+\\]timeout:#' => 1,
+            '#^\\[\\d+\\]retry:#'   => 3,
+            '#^\\[\\d+\\]finish:#'  => null,
+            '#^\\[\\d+\\]end:#'     => 0,
         ]);
 
         that($events)->isSame([
-            "breather" => [0],
-            "cycle"    => [0, 1, 2, 3, 4, 5, 6, 7],
-            "fail"     => ["2"],
-            "finish"   => ["2", "3", "4", "4", "4", "4", "5"],
-            "timeout"  => ["3"],
-            "retry"    => ["4", "4", "4"],
-            "done"     => ["4", "5"],
+            "cycle"   => [0, 1, 2, 3, 4, 5, 6, 7],
+            "fail"    => ["2"],
+            "finish"  => ["2", "3", "4", "4", "4", "4", "5"],
+            "timeout" => ["3"],
+            "retry"   => ["4", "4", "4"],
+            "done"    => ["4", "5"],
         ]);
     }
 
@@ -305,10 +303,9 @@ class WorkerTest extends AbstractTestCase
             '#^\\[\\d+\\]timeout: 1.\\d#' => 1,
         ]);
         that($events)->isSame([
-            "timeout"  => ["1", "2"],
-            "finish"   => ["1", "2"],
-            "cycle"    => [0, 1, 2],
-            "breather" => [2],
+            "timeout" => ["1", "2"],
+            "finish"  => ["1", "2"],
+            "cycle"   => [0, 1, 2],
         ]);
     }
 
@@ -372,8 +369,11 @@ class WorkerTest extends AbstractTestCase
     {
         $worker = new Worker([
             'driver'  => $this->createDriver(function ($count) {
-                if ($count > 256) {
+                if ($count > 512) {
                     posix::kill(getmypid(), pcntl::SIGTERM);
+                }
+                if ($count > 256) {
+                    return null;
                 }
                 return new Message($count, $count, 0, 0);
             }),
@@ -384,12 +384,21 @@ class WorkerTest extends AbstractTestCase
         $worker->start(function () { });
 
         that($logs)->matchesCountEquals([
-            '#^\\[\\d+\\]continue: 16#'  => 1,
-            '#^\\[\\d+\\]continue: 32#'  => 1,
-            '#^\\[\\d+\\]continue: 64#'  => 1,
-            '#^\\[\\d+\\]continue: 128#' => 1,
-            '#^\\[\\d+\\]continue: 256#' => 1,
-            '#^\\[\\d+\\]continue: 257#' => 1,
+            '#^\\[\\d+\\]busy:#'       => 5,
+            '#^\\[\\d+\\]busy: 16/1#'  => 1,
+            '#^\\[\\d+\\]busy: 32/2#'  => 1,
+            '#^\\[\\d+\\]busy: 64/3#'  => 1,
+            '#^\\[\\d+\\]busy: 128/4#' => 1,
+            '#^\\[\\d+\\]busy: 256/5#' => 1,
+            '#^\\[\\d+\\]idle:#'       => 5,
+            // no fire
+            // 245|+++++++++++| rate > 0 fire busy256
+            // 257|+++++++++--| rate > 0 not fire idle256
+            '#^\\[\\d+\\]idle: 255/4#' => 0,
+            '#^\\[\\d+\\]idle: 127/3#' => 1,
+            '#^\\[\\d+\\]idle: 63/2#'  => 1,
+            '#^\\[\\d+\\]idle: 31/1#'  => 1,
+            '#^\\[\\d+\\]idle: 15/0#'  => 1,
         ]);
     }
 
