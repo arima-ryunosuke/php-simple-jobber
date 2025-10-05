@@ -74,9 +74,6 @@ class ClientTest extends AbstractTestCase
 
     function test_all()
     {
-        $processdir = sys_get_temp_dir() . '/hellowo/process';
-        array_map('unlink', glob("$processdir/*"));
-
         $client = that(new Client([
             'driver'   => $this->createDriver($data),
             'logger'   => new ArrayLogger($logs),

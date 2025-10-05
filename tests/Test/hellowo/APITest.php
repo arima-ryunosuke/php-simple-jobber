@@ -25,23 +25,19 @@ class APITest extends AbstractTestCase
         }
 
         srand(1);
-        $processdir = API::$processDirectory;
 
-        mkdir("$processdir/9999", 0777, true);
-        file_put_contents("$processdir/9999/cmdline", '#hellowo');
-
-        mkdir("$processdir/1234", 0777, true);
-        file_put_contents("$processdir/1234/cmdline", '#hellowo');
+        $GLOBALS['hellowo-processes'][1234]['cmdline'] = '#hellowo';
+        $GLOBALS['hellowo-processes'][9999]['cmdline'] = '#hellowo';
 
         that(API::class)::notifyLocal(1)->is([1234]);
 
-        that("$processdir/1234/signal")->fileEquals(pcntl::SIGUSR1 . "\n");
-        that("$processdir/9999/signal")->fileNotExists();
+        that($GLOBALS['hellowo-processes'][1234]['signal'])->is([pcntl::SIGUSR1]);
+        @that($GLOBALS['hellowo-processes'][9999]['signal'])->is(null);
 
         that(API::class)::notifyLocal(99)->is([1234, 9999]);
 
-        that("$processdir/1234/signal")->fileEquals(pcntl::SIGUSR1 . "\n" . pcntl::SIGUSR1 . "\n");
-        that("$processdir/9999/signal")->fileEquals(pcntl::SIGUSR1 . "\n");
+        that($GLOBALS['hellowo-processes'][1234]['signal'])->is([pcntl::SIGUSR1, pcntl::SIGUSR1]);
+        that($GLOBALS['hellowo-processes'][9999]['signal'])->is([pcntl::SIGUSR1]);
     }
 
     function test_messageString()

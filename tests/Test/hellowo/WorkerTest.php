@@ -109,7 +109,7 @@ class WorkerTest extends AbstractTestCase
         ])->wasThrown('listener must be Listener');
     }
 
-    function test_all()
+    function test_work()
     {
         $stdout = $this->emptyDirectory() . '/stdout.txt';
 
@@ -132,7 +132,7 @@ class WorkerTest extends AbstractTestCase
         ]);
 
         try {
-            $worker->start(function (Message $message) use ($stdout) {
+            $worker->work(function (Message $message) use ($stdout) {
                 // fail
                 if ($message->getContents() === "2") {
                     throw new Exception();
@@ -180,6 +180,128 @@ class WorkerTest extends AbstractTestCase
         ]);
     }
 
+    function test_fork()
+    {
+        if (extension_loaded('pcntl')) {
+            $this->markTestSkipped();
+        }
+
+        $worker = that(new Worker([
+            'driver'  => $this->createDriver(fn() => null),
+            'logger'  => new ArrayLogger($logs),
+            'signals' => [],
+            'timeout' => 1,
+        ]));
+
+        $ipcSockets = stream_socket_pair(DIRECTORY_SEPARATOR === '\\' ? STREAM_PF_INET : STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        stream_set_blocking($ipcSockets[0], false);
+        stream_set_blocking($ipcSockets[1], false);
+
+        /** @var Generator $generator */
+        $generator = $worker->generateFork(fn() => null, 4, 8, $ipcSockets)->return();
+
+        $processData = function ($pdata) {
+            $result = [];
+            foreach ($pdata as $pid => $data) {
+                $result[$pid - getmypid() * 10] = $data['type'];
+            }
+            return $result;
+        };
+
+        fwrite($ipcSockets[1], "hoge\n");
+        $generator->send(0.1);
+        that($processData($generator->current()))->is([
+            0 => "initial",  // initial
+            // 1 is failed fork
+            2 => "initial",  // initial
+            3 => "initial",  // initial
+        ]);
+
+        fwrite($ipcSockets[1], str_repeat("increase\n", 9));
+        $generator->send(0.1);
+        that($processData($generator->current()))->is([
+            0 => "initial",  // initial
+            // 1 is failed fork
+            2 => "initial",  // initial
+            3 => "initial",  // initial
+            4 => "initial",  // respawn(because 1 is failed)
+            5 => "increase", // increase
+            6 => "increase", // increase
+            7 => "increase", // increase
+            8 => "increase", // increase
+            // 9 is busy
+        ]);
+
+        fwrite($ipcSockets[1], str_repeat("decrease\n", 9));
+        $generator->send(0.1);
+        that($processData($generator->current()))->is([
+            0 => "initial",  // initial
+            // 1 is failed fork
+            2 => "initial",  // initial
+            3 => "initial",  // respawn
+            4 => "initial",  // initial
+            // 5 is decrease
+            // 6 is decrease
+            7 => "increase", // failed kill
+            // 8 is decrease
+        ]);
+
+        fwrite($ipcSockets[1], str_repeat("increase\n", 9));
+        posix::kill(getmypid(), pcntl::SIGHUP);
+        $generator->send(0.1);
+        that($processData($generator->current()))->is([
+            7 => "increase", // failed kill
+        ]);
+        $generator->send(0.1);
+        that($processData($generator->current()))->is([
+            7  => "increase", // failed kill
+            // 8 is increase and failed respawn
+            // 9 is increase and failed respawn
+            // 10 is increase and failed respawn
+            // 11 is failed fork
+            // 12 is increase and failed respawn
+            13 => "initial", // respawn
+            14 => "initial", // respawn
+            15 => "initial", // respawn
+        ]);
+
+        $pids = $generator->current();
+        end($pids);
+        posix::kill(key($pids), pcntl::SIGTERM);
+        posix::kill(getmypid(), pcntl::SIGCHLD);
+        $generator->send(0.1);
+        that($processData($generator->current()))->is([
+            7  => "increase", // failed kill
+            13 => "initial",  // reload
+            14 => "initial",  // reload
+            // 15 is kill and reap
+        ]);
+
+        fwrite($ipcSockets[1], str_repeat("increase\n", 9));
+        posix::kill(getmypid(), pcntl::SIGTERM);
+        $generator->send(0.1);
+        that($processData($generator->getReturn()))->is([
+            7  => "increase", // failed kill
+            // 15 is respawn and killed by loop end
+            // 16 is respawn and killed by loop end
+            17 => "increase", // failed kill
+        ]);
+
+        that($logs)->matchesCountEquals([
+            '#^\\[\\d+\\]\\[master\\]fork:#'     => null,
+            '#^\\[\\d+\\]\\[master\\]kill:#'     => null,
+            '#^\\[\\d+\\]\\[master\\]message:#'  => null,
+            '#^\\[\\d+\\]\\[master\\]busy: you#' => null,
+            '#^\\[\\d+\\]\\[master\\]reload:#'   => null,
+            '#^\\[\\d+\\]\\[master\\]reap:#'     => null,
+            '#^\\[\\d+\\]\\[master\\]stop:#'     => null,
+            '#unknown message#'                  => null,
+            '#respawn: failed#'                  => null,
+            '#fork failed#'                      => null,
+            '#kill failed#'                      => null,
+        ]);
+    }
+
     function test_setup()
     {
         $stdout = $this->emptyDirectory() . '/stdout.txt';
@@ -201,7 +323,7 @@ class WorkerTest extends AbstractTestCase
         ]);
 
         try {
-            $worker->start(function (Message $message) use ($stdout) {
+            $worker->work(function (Message $message) use ($stdout) {
                 file_put_contents($stdout, $message, FILE_APPEND | LOCK_EX);
             });
         }
@@ -230,7 +352,7 @@ class WorkerTest extends AbstractTestCase
             'timeout'  => 1,
         ]));
 
-        $worker->start(function (Message $message) { })->wasThrown(ExitException::class);
+        $worker->work(function (Message $message) { })->wasThrown(ExitException::class);
 
         that($logs)->matchesCountEquals([
             '#^\\[\\d+\\]sleep:#' => 2,
@@ -260,7 +382,7 @@ class WorkerTest extends AbstractTestCase
             ],
         ]);
 
-        $worker->start(function (Message $message) {
+        $worker->work(function (Message $message) {
             if ($message->getContents() === "2") {
                 posix::kill(getmypid(), pcntl::SIGTERM);
                 $this->sleep(5);
@@ -291,7 +413,7 @@ class WorkerTest extends AbstractTestCase
             'listener' => new ArrayListener($events),
         ]);
 
-        $worker->start(function (Message $message) {
+        $worker->work(function (Message $message) {
             while (true) {
                 pcntl::signal_dispatch();
                 usleep(10_000);
@@ -329,7 +451,7 @@ class WorkerTest extends AbstractTestCase
             'signals' => [],
         ]);
 
-        $worker->start(function () { throw new Exception(); });
+        $worker->work(function () { throw new Exception(); });
 
         that($logs)->matchesCountEquals([
             '#^\\[\\d+\\]start:#'     => 1,
@@ -349,7 +471,7 @@ class WorkerTest extends AbstractTestCase
         ]);
 
         try {
-            $worker->start(function () { throw new Error('error message'); });
+            $worker->work(function () { throw new Error('error message'); });
             $this->fail('no error');
         }
         catch (Error $e) {
@@ -367,7 +489,7 @@ class WorkerTest extends AbstractTestCase
 
     function test_continuity()
     {
-        $worker = new Worker([
+        $worker = that(new Worker([
             'driver'  => $this->createDriver(function ($count) {
                 if ($count > 512) {
                     posix::kill(getmypid(), pcntl::SIGTERM);
@@ -379,9 +501,11 @@ class WorkerTest extends AbstractTestCase
             }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
-        ]);
+        ]));
 
-        $worker->start(function () { });
+        foreach ($worker->generateWork(function () { }, [null, $tmpfile = tmpfile()])->return() as $ignored) {
+            // noop
+        }
 
         that($logs)->matchesCountEquals([
             '#^\\[\\d+\\]busy:#'       => 5,
@@ -399,6 +523,12 @@ class WorkerTest extends AbstractTestCase
             '#^\\[\\d+\\]idle: 63/2#'  => 1,
             '#^\\[\\d+\\]idle: 31/1#'  => 1,
             '#^\\[\\d+\\]idle: 15/0#'  => 1,
+        ]);
+
+        rewind($tmpfile);
+        that(explode("\n", stream_get_contents($tmpfile)))->matchesCountEquals([
+            '#increase#' => 5,
+            '#decrease#' => 5,
         ]);
     }
 
@@ -426,7 +556,7 @@ class WorkerTest extends AbstractTestCase
         // null or default
         $worker->restartClosure(null)(0, 0, 0)->is(null);
 
-        $worker->start(function () { })->wasThrown(ExitException::class);
+        $worker->work(function () { })->wasThrown(ExitException::class);
     }
 
     function test_shutdown()

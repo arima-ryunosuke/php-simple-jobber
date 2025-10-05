@@ -131,9 +131,6 @@ class AbstractDriverTest extends AbstractTestCase
 
     function test_misc()
     {
-        $procdir = sys_get_temp_dir() . '/hellowo/proc';
-        @mkdir("$procdir/999", 0777, true);
-
         $driver = that(new class ("") extends AbstractDriver {
             protected function notify(int $count = 1): int
             {
@@ -146,7 +143,7 @@ class AbstractDriverTest extends AbstractTestCase
         $driver->notify()->is(0);
 
         if (DIRECTORY_SEPARATOR === '\\') {
-            file_put_contents("$procdir/999/cmdline", '#hellowo');
+            $GLOBALS['hellowo-processes'][999]['cmdline'] = '#hellowo';
             $driver->notify(true)->is(1);
         }
     }

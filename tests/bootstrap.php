@@ -35,6 +35,10 @@ if (false) {
     define('RABBITMQ_URL', '');
 }
 
+$GLOBALS['hellowo-processes'] = [
+    getmypid() => ['type' => 'parent'],
+];
+
 class ArrayLogger extends AbstractLogger
 {
     use InterpolationTrait;

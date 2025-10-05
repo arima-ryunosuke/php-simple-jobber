@@ -6,19 +6,46 @@ namespace ryunosuke\hellowo\ext;
 
 class posix
 {
+    private static int $errno = 0;
+
+    public static function errno(): int
+    {
+        if (function_exists('posix_errno')) {
+            return posix_errno();
+        }
+
+        return self::$errno;
+    }
+
+    public static function strerror(int $error_code): string
+    {
+        if (function_exists('posix_strerror')) {
+            return posix_strerror($error_code);
+        }
+
+        $messages = [
+            0 => 'success',
+            2 => 'kill failed',
+        ];
+        return $messages[$error_code] ?? 'unknown error';
+    }
+
     public static function kill(int $process_id, int $signal): bool
     {
         if (function_exists('posix_kill')) {
             return posix_kill($process_id, $signal);
         }
 
-        $mypiddir = \ryunosuke\hellowo\API::$processDirectory . "/$process_id";
-        if (!file_exists($mypiddir)) {
+        if ($process_id !== getmypid() && $process_id % 10 === 7) {
+            self::$errno = 2;
             return false;
         }
 
-        $signalfile = "$mypiddir/signal";
-        file_put_contents($signalfile, "$signal\n", FILE_APPEND | LOCK_EX);
+        if (!isset($GLOBALS['hellowo-processes'][$process_id])) {
+            return false;
+        }
+
+        $GLOBALS['hellowo-processes'][$process_id]['signal'][] = $signal;
 
         return true;
     }
@@ -30,11 +57,7 @@ class posix
             cli_set_process_title($newname);
 
             if (DIRECTORY_SEPARATOR === '\\') {
-                $mypiddir = \ryunosuke\hellowo\API::$processDirectory . "/" . getmypid();
-                @mkdir($mypiddir, 0777, true);
-
-                $cmdline = "$mypiddir/cmdline";
-                file_put_contents($cmdline, $newname, LOCK_EX);
+                $GLOBALS['hellowo-processes'][getmypid()]['cmdline'] = $newname;
             }
 
             return $oldname;
@@ -64,11 +87,9 @@ class posix
         }
 
         $result = [];
-        foreach (glob(\ryunosuke\hellowo\API::$processDirectory . "/*/cmdline") as $cmdline) {
-            $pid = basename(dirname($cmdline));
-            $cmd = file_get_contents($cmdline);
-            if (strpos($cmd, $line) !== false) {
-                $result[$pid] = $cmd;
+        foreach ($GLOBALS['hellowo-processes'] ?? [] as $pid => $process) {
+            if (strpos($process['cmdline'] ?? '', $line) !== false) {
+                $result[$pid] = $process['cmdline'];
             }
         }
 

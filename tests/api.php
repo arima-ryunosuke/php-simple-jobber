@@ -55,7 +55,7 @@ $driver = (function (string $url) {
             $client->send($contents, $priority, $delay);
             return;
 
-        case 'worker':
+        case 'worker:work':
             $worker = new Worker([
                 'driver' => $driver,
                 'logger' => new class() extends AbstractLogger {
@@ -67,13 +67,34 @@ $driver = (function (string $url) {
                     }
                 },
             ]);
-            $worker->start(function (Message $message): string {
+            $worker->work(function (Message $message): string {
                 if ($message->getContents() === 'retry' && $message->getRetry() < 3) {
                     throw new RetryableException(0.1);
                 }
                 fwrite(STDOUT, "$message\n");
                 return $message;
             });
+            return;
+
+        case 'worker:fork':
+            $worker = new Worker([
+                'driver' => $driver,
+                'logger' => new class() extends AbstractLogger {
+                    use InterpolationTrait;
+
+                    public function log($level, $message, array $context = [])
+                    {
+                        fwrite(STDERR, date('Y/m/d H:i:s') . ":{$this->interpolate($message, $context)}\n");
+                    }
+                },
+            ]);
+            $worker->fork(function (Message $message): string {
+                if ($message->getContents() === 'retry' && $message->getRetry() < 3) {
+                    throw new RetryableException(0.1);
+                }
+                fwrite(STDOUT, "$message\n");
+                return $message;
+            }, 5, 7);
             return;
     }
 })($driver, $argv[2] ?? '', $argv[3] ?? '', strlen($argv[4] ?? '') ? $argv[4] : null, strlen($argv[5] ?? '') ? $argv[5] : null);

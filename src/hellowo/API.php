@@ -11,11 +11,6 @@ use ryunosuke\hellowo\ext\posix;
 use stdClass;
 use Throwable;
 
-// @codeCoverageIgnoreStart
-// This constant is only for property assignment dynamically(expression) and has no other meaning
-define(__NAMESPACE__ . '\\processDirectory', sys_get_temp_dir() . '/hellowo/proc');
-// @codeCoverageIgnoreEnd
-
 /**
  * API spec class
  *
@@ -28,9 +23,6 @@ abstract class API
         pcntl::SIGINT  => null,
         pcntl::SIGTERM => null,
     ];
-
-    /** @var string interprocess directory */
-    public static string $processDirectory = processDirectory;
 
     /**
      * @param int $count
