@@ -39,19 +39,19 @@ class Client extends API
 
     public function setup(bool $forcibly = false): void
     {
-        $this->logger->info("setup: {$this->logString(get_defined_vars())}");
+        $this->logger->info("{event}: {vars}", ['event' => 'setup', 'vars' => $this->logString(get_defined_vars())]);
         $this->driver->setup(...func_get_args());
     }
 
     public function isStandby(): bool
     {
-        $this->logger->info("isStandby: {$this->logString(get_defined_vars())}");
+        $this->logger->info("{event}: {vars}", ['event' => 'isStandby', 'vars' => $this->logString(get_defined_vars())]);
         return $this->driver->isStandby();
     }
 
     public function send($contents, ?int $priority = null, $time = null, int $timeout = 0): ?string
     {
-        $this->logger->info("send: {$this->logString(get_defined_vars())}");
+        $this->logger->info("{event}: {vars}", ['event' => 'send', 'vars' => $this->logString(get_defined_vars())]);
         $id = $this->driver->send($this->messageString($contents), $priority, $time, $timeout);
         $this->listener->onSend($id);
         if (!$time) {
@@ -62,7 +62,7 @@ class Client extends API
 
     public function sendBulk(iterable $contents, ?int $priority = null, $time = null, int $timeout = 0): array
     {
-        $this->logger->info("sendBulk: {$this->logString(get_defined_vars())}");
+        $this->logger->info("{event}: {vars}", ['event' => 'sendBulk', 'vars' => $this->logString(get_defined_vars())]);
         $ids = [];
         foreach ($contents as $content) {
             $ids[] = $id = $this->driver->send($this->messageString($content), $priority, $time, $timeout);
@@ -76,19 +76,19 @@ class Client extends API
 
     public function notify(int $count = 1): int
     {
-        $this->logger->info("notify: {$this->logString(get_defined_vars())}");
+        $this->logger->info("{event}: {vars}", ['event' => 'notify', 'vars' => $this->logString(get_defined_vars())]);
         return $this->driver->notify($count);
     }
 
     public function cancel(?string $job_id = null, ?string $message = null): int
     {
-        $this->logger->info("cancel: {$this->logString(get_defined_vars())}");
+        $this->logger->info("{event}: {vars}", ['event' => 'cancel', 'vars' => $this->logString(get_defined_vars())]);
         return $this->driver->cancel($job_id, $message);
     }
 
     public function clear(): int
     {
-        $this->logger->notice("clear: {$this->logString(get_defined_vars())}");
+        $this->logger->notice("{event}: {vars}", ['event' => 'clear', 'vars' => $this->logString(get_defined_vars())]);
         return $this->driver->clear();
     }
 }

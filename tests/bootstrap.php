@@ -3,6 +3,7 @@
 use Psr\Log\AbstractLogger;
 use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\hellowo\Listener\AbstractListener;
+use ryunosuke\hellowo\Logger\InterpolationTrait;
 use ryunosuke\hellowo\Message;
 use ryunosuke\PHPUnit\Actual;
 
@@ -36,6 +37,8 @@ if (false) {
 
 class ArrayLogger extends AbstractLogger
 {
+    use InterpolationTrait;
+
     public $logs = [];
 
     public function __construct(&$logs)
@@ -43,9 +46,9 @@ class ArrayLogger extends AbstractLogger
         $this->logs = &$logs;
     }
 
-    public function log($level, $message, array $context = [])
+    public function log($level, $message, array $context = []): void
     {
-        $this->logs[] = $message;
+        $this->logs[] = $this->interpolate($message, $context);
     }
 }
 

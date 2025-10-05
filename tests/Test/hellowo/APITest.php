@@ -93,6 +93,8 @@ class APITest extends AbstractTestCase
     {
         $api = that($this->createAPI());
 
+        $api->logString(null)->is('null');
+        $api->logString(false)->is('false');
         $api->logString([null, 1, 'hoge', STDOUT, [1, 2, 3]])->is('[null,1,"hoge","Resource id #2",[1,2,3]]');
         $api->logString((object) ['hoge' => 'HOGE'])->is('{"hoge":"HOGE"}');
         $api->logString(new SplFileInfo('file'))->is('file');

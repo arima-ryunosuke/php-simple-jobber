@@ -162,6 +162,10 @@ abstract class API
      */
     protected function logString($log_data): string
     {
+        if (is_bool($log_data) || is_null($log_data)) {
+            return json_encode($log_data);
+        }
+
         $is_array = is_array($log_data);
         if (!$is_array) {
             $log_data = [$log_data];

@@ -4,6 +4,7 @@ use Psr\Log\AbstractLogger;
 use ryunosuke\hellowo\Client;
 use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\hellowo\Exception\RetryableException;
+use ryunosuke\hellowo\Logger\InterpolationTrait;
 use ryunosuke\hellowo\Message;
 use ryunosuke\hellowo\Worker;
 
@@ -58,9 +59,11 @@ $driver = (function (string $url) {
             $worker = new Worker([
                 'driver' => $driver,
                 'logger' => new class() extends AbstractLogger {
+                    use InterpolationTrait;
+
                     public function log($level, $message, array $context = [])
                     {
-                        fwrite(STDERR, date('Y/m/d H:i:s') . ":$message\n");
+                        fwrite(STDERR, date('Y/m/d H:i:s') . ":{$this->interpolate($message, $context)}\n");
                     }
                 },
             ]);

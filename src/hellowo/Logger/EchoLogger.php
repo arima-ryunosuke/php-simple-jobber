@@ -12,6 +12,8 @@ use ReflectionClass;
  */
 class EchoLogger extends AbstractLogger
 {
+    use InterpolationTrait;
+
     private $level;
 
     public function __construct($level)
@@ -19,7 +21,7 @@ class EchoLogger extends AbstractLogger
         $this->level = $level;
     }
 
-    public function log($level, $message, array $context = [])
+    public function log($level, $message, array $context = []): void
     {
         static $levels = null;
         $levels ??= array_flip(array_values((new ReflectionClass(LogLevel::class))->getConstants()));
@@ -30,6 +32,6 @@ class EchoLogger extends AbstractLogger
 
         $now = (new DateTime())->format('Y-m-d\\TH:i:s.v');
 
-        echo "[$now][$level] $message\n";
+        echo "[$now][$level] {$this->interpolate($message, $context)}\n";
     }
 }
