@@ -26,9 +26,21 @@ class MySqlDriverTest extends AbstractTestCase
         }
     }
 
-    function test___construct()
+    function test_getConnection()
     {
-        @that(MySqlDriver::class)->new(['host' => '0.0.0.0', 'port' => 9999])->wasThrown(/* difference php7/8 */);
+        $driver = that(new MySqlDriver([
+            'transport' => [
+                'host' => '0.0.0.0',
+                'port' => 9999,
+            ],
+        ]));
+        $driver->getConnection()->wasThrown(/* difference php7/8 */);
+
+        $connection = that(AbstractDriver::create(self::DRIVER_URL))->getConnection()->return();
+        $driver     = that(new MySqlDriver([
+            'transport' => $connection,
+        ]));
+        $driver->getConnection()->isSame($connection);
     }
 
     function test_lifecycle()
@@ -106,12 +118,12 @@ class MySqlDriverTest extends AbstractTestCase
         $driver->setup(true);
 
         /** @var mysqli $connection */
-        $connection = $driver->var('connection');
+        $connection = $driver->getConnection()->return();
 
         $url = MYSQL_URL;
         $cid = $connection->thread_id;
         $this->backgroundTask(function () use ($url, $cid) {
-            $connection = (fn() => $this->connection)->bindTo(MySqlDriver::create($url), MySqlDriver::class)();
+            $connection = (fn() => $this->getConnection())->bindTo(MySqlDriver::create($url), MySqlDriver::class)();
             while (true) {
                 $connection->query("KILL QUERY $cid");
                 usleep(100 * 1000);
@@ -153,10 +165,10 @@ class MySqlDriverTest extends AbstractTestCase
         $tmpdriver->recover()->is([]);
         $tmpdriver->processlist()->is([]);
 
-        $otherCid = $tmpdriver->var('connection')->thread_id;
+        $otherCid = (int) $tmpdriver->getConnection()->return()->thread_id;
 
         $driver = that(new class([
-            'transport' => that(AbstractDriver::create(MYSQL_URL))->var('connection'),
+            'transport' => that(AbstractDriver::create(MYSQL_URL))->getConnection()->return(),
             'heartbeat' => 10,
         ]) extends MySqlDriver {
             public $processlist = [];
@@ -209,12 +221,12 @@ class MySqlDriverTest extends AbstractTestCase
         $driver->setup(true);
 
         /** @var mysqli $connection */
-        $connection = $driver->var('connection');
+        $connection = $driver->getConnection()->return();
 
         $url = MYSQL_URL;
         $cid = $connection->thread_id;
         $this->backgroundTask(function () use ($url, $cid) {
-            $connection = (fn() => $this->connection)->bindTo(MySqlDriver::create($url), MySqlDriver::class)();
+            $connection = (fn() => $this->getConnection())->bindTo(MySqlDriver::create($url), MySqlDriver::class)();
             while (true) {
                 $connection->query("KILL QUERY $cid");
                 usleep(500 * 1000);

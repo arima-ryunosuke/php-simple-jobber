@@ -31,6 +31,7 @@ class PostgreSqlDriver extends AbstractDriver
         ];
     }
 
+    private array  $transport;
     private        $connection;
     private string $table;
 
@@ -73,27 +74,23 @@ class PostgreSqlDriver extends AbstractDriver
         ]);
 
         // connection
-        $transport = $options['transport'];
-        if (is_array($transport)) {
-            $transport = array_filter([
-                'host'     => $transport['host'] ?? null,
-                'port'     => $transport['port'] ?? null,
-                'user'     => $transport['user'] ?? $transport['username'] ?? null,
-                'password' => $transport['password'] ?? null,
+        if (is_array($options['transport'])) {
+            $this->transport = array_filter([
+                'host'     => $options['transport']['host'] ?? null,
+                'port'     => $options['transport']['port'] ?? null,
+                'user'     => $options['transport']['user'] ?? $options['transport']['username'] ?? null,
+                'password' => $options['transport']['password'] ?? null,
                 'dbname'   => $options['dbname'] ?? $options['database'] ?? null,
                 //'application_name' => 'hellowo',
             ], fn($value) => $value !== '' && $value !== null);
-
-            $DSN = implode(' ', array_map(
-                fn($value, string $key) => sprintf("%s='%s'", $key, addslashes($value)),
-                array_values($transport),
-                array_keys($transport),
-            ));
-
-            $transport = pg_connect($DSN, PGSQL_CONNECT_FORCE_NEW);
+            parent::__construct("postgresql {$this->transport['host']}/{$options['table']}");
         }
-        $this->connection = $transport;
-        $this->table      = $options['table'];
+        else {
+            $this->connection = $options['transport'];
+            $hostport         = pg_host($this->connection) . ':' . pg_port($this->connection);
+            parent::__construct("postgresql {$hostport}/{$options['table']}");
+        }
+        $this->table = $options['table'];
 
         $this->starttime  = $options['starttime'];
         $this->waittime   = $options['waittime'];
@@ -103,9 +100,21 @@ class PostgreSqlDriver extends AbstractDriver
 
         $this->heartbeat      = $options['heartbeat'];
         $this->heartbeatTimer = microtime(true) + $this->heartbeat;
+    }
 
-        $hostport = pg_host($this->connection) . ':' . pg_port($this->connection);
-        parent::__construct("postgresql {$hostport}/{$options['table']}");
+    protected function getConnection()
+    {
+        if (!isset($this->connection)) {
+            $DSN = implode(' ', array_map(
+                fn($value, string $key) => sprintf("%s='%s'", $key, addslashes($value)),
+                array_values($this->transport),
+                array_keys($this->transport),
+            ));
+
+            $this->connection = pg_connect($DSN, PGSQL_CONNECT_FORCE_NEW);
+        }
+
+        return $this->connection;
     }
 
     protected function setup(bool $forcibly = false): void
@@ -140,7 +149,7 @@ class PostgreSqlDriver extends AbstractDriver
         }
 
         if ($this->waitmode === 'sql') {
-            pg_query($this->connection, 'LISTEN hellowo_awake');
+            pg_query($this->getConnection(), 'LISTEN hellowo_awake');
         }
 
         if ($this->sharedFile !== null) {
@@ -160,7 +169,7 @@ class PostgreSqlDriver extends AbstractDriver
                 throw new ErrorException($message, 0, $severity, $file, $line);
             });
             try {
-                if (in_array(pg_connection_status($this->connection), [false, PGSQL_CONNECTION_BAD], true)) {
+                if (in_array(pg_connection_status($this->getConnection()), [false, PGSQL_CONNECTION_BAD], true)) {
                     DriverException::throw($e->getMessage(), $e->getCode(), $e); // @codeCoverageIgnore
                 }
             }
@@ -226,8 +235,10 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function close(): void
     {
-        @pg_close($this->connection);
-        unset($this->connection);
+        if (isset($this->connection)) {
+            @pg_close($this->connection);
+            unset($this->connection);
+        }
 
         gc_collect_cycles();
     }
@@ -295,14 +306,14 @@ class PostgreSqlDriver extends AbstractDriver
     protected function sleep(): void
     {
         if ($this->waitmode === 'sql') {
-            $socket = pg_socket($this->connection);
+            $socket = pg_socket($this->getConnection());
             while (true) {
                 $read  = [$socket];
                 $write = $except = null;
                 if (!@stream_select($read, $write, $except, 0, $this->waittime * 1000 * 1000)) {
                     break;
                 }
-                $notify = pg_get_notify($this->connection);
+                $notify = pg_get_notify($this->getConnection());
                 if ($notify === false || $notify['message'] === 'hellowo_awake') {
                     break;
                 }
@@ -346,17 +357,17 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function execute(string $query, array $bind = [], bool $cachePrepare = true)
     {
-        set_error_handler(fn() => DriverException::throw(@pg_last_error($this->connection)));
+        set_error_handler(fn() => DriverException::throw(@pg_last_error($this->getConnection())));
 
         try {
             $stmtname = $this->statements[$query] ??= (function () use ($query) {
                 $stmtname  = 'hellowostmt' . count($this->statements);
-                $statement = pg_prepare($this->connection, $stmtname, $query);
+                $statement = pg_prepare($this->getConnection(), $stmtname, $query);
                 assert(is_object($statement) || is_resource($statement));
                 return $stmtname;
             })();
 
-            $result = pg_execute($this->connection, $stmtname, $bind);
+            $result = pg_execute($this->getConnection(), $stmtname, $bind);
             try {
                 if (pg_num_fields($result)) {
                     return pg_fetch_all($result, PGSQL_ASSOC) ?: []; // under php8.1 empty set returns false
@@ -367,7 +378,7 @@ class PostgreSqlDriver extends AbstractDriver
                 pg_free_result($result);
 
                 if (!$cachePrepare) {
-                    pg_query($this->connection, "DEALLOCATE $stmtname");
+                    pg_query($this->getConnection(), "DEALLOCATE $stmtname");
                     unset($this->statements[$query]);
                 }
             }
@@ -379,6 +390,6 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function query(string $query)
     {
-        return pg_query($this->connection, $query);
+        return pg_query($this->getConnection(), $query);
     }
 }

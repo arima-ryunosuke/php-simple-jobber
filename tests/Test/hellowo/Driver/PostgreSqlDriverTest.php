@@ -58,7 +58,7 @@ class PostgreSqlDriverTest extends AbstractTestCase
         $driver->isStandby()->isTrue();
         $driver->execute('COMMIT');
 
-        pg_close($driver->var('connection'));
+        pg_close($driver->getConnection()->return());
         $driver->isStandby()->wasThrown(/* difference php7/8 */);
 
         restore_error_handler();
@@ -93,7 +93,7 @@ class PostgreSqlDriverTest extends AbstractTestCase
 
         $url = PGSQL_URL;
         $this->backgroundTask(function () use ($url) {
-            $connection = (fn() => $this->connection)->bindTo(PostgreSqlDriver::create($url), PostgreSqlDriver::class)();
+            $connection = (fn() => $this->getConnection())->bindTo(PostgreSqlDriver::create($url), PostgreSqlDriver::class)();
             sleep(2);
             while (true) {
                 pg_query($connection, "NOTIFY hellowo_awake");
@@ -121,7 +121,7 @@ class PostgreSqlDriverTest extends AbstractTestCase
         $tmpdriver = AbstractDriver::create(PGSQL_URL);
 
         $driver = that(new class([
-            'transport' => that($tmpdriver)->var('connection'),
+            'transport' => that($tmpdriver)->getConnection()->return(),
             'heartbeat' => 0,
         ]) extends PostgreSqlDriver {
             protected function processlist(): array

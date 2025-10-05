@@ -27,6 +27,7 @@ class BeanstalkDriver extends AbstractDriver
         ];
     }
 
+    private array      $transport;
     private Pheanstalk $connection;
 
     private float $waittime;
@@ -45,36 +46,50 @@ class BeanstalkDriver extends AbstractDriver
             'waittime'  => 10.0,
         ]);
 
-        $this->connection = Pheanstalk::create($options['transport']['host'], $options['transport']['port']);
-        $this->connection->useTube($options['tube']);
-        $this->connection->watchOnly($options['tube']);
+        if (is_array($options['transport'])) {
+            $this->transport = $options['transport'] + ['tube' => $options['tube']];
+            parent::__construct("beanstalk {$options['transport']['host']}:{$options['transport']['port']}/{$options['tube']}");
+        }
+        else {
+            $this->connection = $options['transport'];
+            parent::__construct("beanstalk external");
+        }
 
         $this->waittime = $options['waittime'];
+    }
 
-        parent::__construct("beanstalk {$options['transport']['host']}:{$options['transport']['port']}/{$options['tube']}");
+    protected function getConnection()
+    {
+        if (!isset($this->connection)) {
+            $this->connection = Pheanstalk::create($this->transport['host'], $this->transport['port']);
+            $this->connection->useTube($this->transport['tube']);
+            $this->connection->watchOnly($this->transport['tube']);
+        }
+
+        return $this->connection;
     }
 
     protected function select(): Generator
     {
-        $pheanstalkJob = $this->connection->reserveWithTimeout(ceil($this->waittime));
+        $pheanstalkJob = $this->getConnection()->reserveWithTimeout(ceil($this->waittime));
         if ($pheanstalkJob) {
             $job    = $this->decode($pheanstalkJob->getData());
             $result = yield new Message($pheanstalkJob->getId(), $job['contents'], 0, 0);
             if ($result === null) {
-                $this->connection->delete($pheanstalkJob);
+                $this->getConnection()->delete($pheanstalkJob);
             }
             elseif (is_int($result) || is_float($result)) {
-                $this->connection->release($pheanstalkJob, PheanstalkInterface::DEFAULT_PRIORITY, ceil($result));
+                $this->getConnection()->release($pheanstalkJob, PheanstalkInterface::DEFAULT_PRIORITY, ceil($result));
             }
             else {
-                $this->connection->bury($pheanstalkJob);
+                $this->getConnection()->bury($pheanstalkJob);
             }
         }
     }
 
     protected function error(Exception $e): bool
     {
-        return $this->connection->stats()->getResponseName() !== ResponseInterface::RESPONSE_OK;
+        return $this->getConnection()->stats()->getResponseName() !== ResponseInterface::RESPONSE_OK;
     }
 
     protected function close(): void
@@ -91,16 +106,16 @@ class BeanstalkDriver extends AbstractDriver
         $ttr      = $ttr ?? PheanstalkInterface::DEFAULT_TTR;
 
         // beanstalk's priority: 0 ~ 4294967295 (high ~ low)
-        $job = $this->connection->put($this->encode(['contents' => $contents]), 4294967295 - $priority, ceil($this->getDelay($time)), $ttr);
+        $job = $this->getConnection()->put($this->encode(['contents' => $contents]), 4294967295 - $priority, ceil($this->getDelay($time)), $ttr);
         return (string) $job->getId();
     }
 
     protected function clear(): int
     {
         $count = 0;
-        while ($job = $this->connection->reserveWithTimeout(0)) {
+        while ($job = $this->getConnection()->reserveWithTimeout(0)) {
             $count++;
-            $this->connection->delete($job);
+            $this->getConnection()->delete($job);
         }
         return $count;
     }

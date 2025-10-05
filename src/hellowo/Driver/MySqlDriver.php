@@ -80,21 +80,19 @@ class MySqlDriver extends AbstractDriver
             'heartbeat'  => 0,
         ]);
 
-        // connection
-        $transport = $options['transport'];
-        if (is_array($transport)) {
-            $transport['hostname'] = $transport['host'];     // for compatible php7/8
-            $transport['user']     = $transport['username']; // for compatible php7/8
-            $transport['database'] = $options['database'];   // for compatible php7/8
-            $transport['socket']   = null;                   // for compatible php7/8
-            $this->transport       = $transport;
-            $transport             = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $transport));
-            if ($transport->connect_errno) {
-                DriverException::throw($transport->connect_error, $transport->connect_errno);
-            }
+        if (is_array($options['transport'])) {
+            $options['transport']['hostname'] = $options['transport']['host'];     // for compatible php7/8
+            $options['transport']['user']     = $options['transport']['username']; // for compatible php7/8
+            $options['transport']['socket']   = null;                              // for compatible php7/8
+
+            $this->transport = $options['transport'] + ['database' => $options['database']];
+            parent::__construct("mysql {$this->transport['hostname']}/{$options['table']}");
         }
-        $this->connection = $transport;
-        $this->table      = $options['table'];
+        else {
+            $this->connection = $options['transport'];
+            parent::__construct("mysql {$this->connection->server_info}/{$options['table']}");
+        }
+        $this->table = $options['table'];
 
         $this->starttime  = $options['starttime'];
         $this->waittime   = $options['waittime'];
@@ -105,25 +103,35 @@ class MySqlDriver extends AbstractDriver
 
         $this->heartbeat      = $options['heartbeat'];
         $this->heartbeatTimer = microtime(true) + $this->heartbeat;
+    }
 
-        parent::__construct("mysql {$this->connection->server_info}/{$options['table']}");
+    protected function getConnection(): mysqli
+    {
+        if (!isset($this->connection)) {
+            $this->connection = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $this->transport));
+            if ($this->connection->connect_errno) {
+                DriverException::throw($this->connection->connect_error, $this->connection->connect_errno); // @codeCoverageIgnore
+            }
+        }
+
+        return $this->connection;
     }
 
     protected function setup(bool $forcibly = false): void
     {
         mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-        $this->connection->query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+        $this->getConnection()->query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
         if ($forcibly) {
-            $this->connection->query("DROP TRIGGER IF EXISTS {$this->table}_awake_trigger");
-            $this->connection->query("DROP FUNCTION IF EXISTS {$this->table}_awake");
-            $this->connection->query("DROP TABLE IF EXISTS {$this->table}");
-            $this->connection->query("DROP TABLE IF EXISTS {$this->table}_dead");
+            $this->getConnection()->query("DROP TRIGGER IF EXISTS {$this->table}_awake_trigger");
+            $this->getConnection()->query("DROP FUNCTION IF EXISTS {$this->table}_awake");
+            $this->getConnection()->query("DROP TABLE IF EXISTS {$this->table}");
+            $this->getConnection()->query("DROP TABLE IF EXISTS {$this->table}_dead");
         }
 
         // table
-        $this->connection->query(<<<SQL
+        $this->getConnection()->query(<<<SQL
             CREATE TABLE IF NOT EXISTS {$this->table}(
                 job_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 job_data  JSON NOT NULL,
@@ -136,7 +144,7 @@ class MySqlDriver extends AbstractDriver
             SQL
         );
         if ($this->deadmode === 'table') {
-            $this->connection->query(<<<SQL
+            $this->getConnection()->query(<<<SQL
                 CREATE TABLE IF NOT EXISTS {$this->table}_dead(
                     job_id    BIGINT UNSIGNED NOT NULL,
                     message   JSON NOT NULL,
@@ -152,8 +160,8 @@ class MySqlDriver extends AbstractDriver
         if ($this->waitmode === 'sql') {
             // function
             // separate statement. because "CREATE FUNCTION IF NOT EXISTS" is not supported mysql version
-            if (!$this->connection->query("SELECT 1 FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = '{$this->table}_awake'")->num_rows) {
-                $this->connection->query(<<<SQL
+            if (!$this->getConnection()->query("SELECT 1 FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = '{$this->table}_awake'")->num_rows) {
+                $this->getConnection()->query(<<<SQL
                     CREATE FUNCTION {$this->table}_awake(kill_count BIGINT) RETURNS BIGINT
                     LANGUAGE SQL NOT DETERMINISTIC READS SQL DATA
                     BEGIN
@@ -193,8 +201,8 @@ class MySqlDriver extends AbstractDriver
             if ($this->trigger) {
                 // trigger
                 // separate statement. because "CREATE TRIGGER IF NOT EXISTS" also causes metadata lock
-                if (!$this->connection->query("SELECT 1 FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = '{$this->table}_awake_trigger'")->num_rows) {
-                    $this->connection->query(<<<SQL
+                if (!$this->getConnection()->query("SELECT 1 FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = '{$this->table}_awake_trigger'")->num_rows) {
+                    $this->getConnection()->query(<<<SQL
                         CREATE TRIGGER {$this->table}_awake_trigger AFTER INSERT ON {$this->table} FOR EACH ROW
                         DO {$this->table}_awake(1)
                         SQL
@@ -228,13 +236,13 @@ class MySqlDriver extends AbstractDriver
         $jobs = $this->shareJob($this->sharedFile, $this->waittime, fn() => array_column($this->execute($this->selectJob(['job_id', 'priority'], 256)), null, 'job_id'));
 
         foreach ($jobs as $job_id => $job) {
-            $this->connection->begin_transaction();
+            $this->getConnection()->begin_transaction();
             try {
                 $row = $this->execute("SELECT * FROM {$this->table} WHERE job_id = ? FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
 
                 if ($row === null) {
                     $this->unshareJob($this->sharedFile, $job_id);
-                    $this->connection->rollback();
+                    $this->getConnection()->rollback();
                     continue;
                 }
 
@@ -257,11 +265,11 @@ class MySqlDriver extends AbstractDriver
                     }
                 }
                 $this->unshareJob($this->sharedFile, $job_id);
-                $this->connection->commit();
+                $this->getConnection()->commit();
                 return;
             }
             catch (Throwable $ex) {
-                $this->connection->rollback();
+                $this->getConnection()->rollback();
                 throw $ex;
             }
         }
@@ -277,8 +285,10 @@ class MySqlDriver extends AbstractDriver
 
     protected function close(): void
     {
-        $this->connection->close();
-        unset($this->connection);
+        if (isset($this->connection)) {
+            $this->connection->close();
+            unset($this->connection);
+        }
 
         gc_collect_cycles();
     }
@@ -291,7 +301,7 @@ class MySqlDriver extends AbstractDriver
             [$this->encode(['contents' => $contents, 'timeout' => $timeout]), $priority, $this->getDelay($time)],
         );
 
-        return $this->connection->insert_id;
+        return $this->getConnection()->insert_id;
     }
 
     protected function notify(int $count = 1): int
@@ -306,7 +316,7 @@ class MySqlDriver extends AbstractDriver
 
     protected function cancel(?string $job_id = null, ?string $contents = null): int
     {
-        $this->connection->begin_transaction();
+        $this->getConnection()->begin_transaction();
         try {
             // cannot cancel items already in progress
             $where  = 'FALSE';
@@ -326,11 +336,11 @@ class MySqlDriver extends AbstractDriver
                 $count = $this->execute("DELETE FROM {$this->table} WHERE job_id IN (" . implode(',', array_fill(0, count($job_ids), '?')) . ")", $job_ids, false);
             }
 
-            $this->connection->commit();
+            $this->getConnection()->commit();
             return $count;
         }
         catch (Throwable $ex) {
-            $this->connection->rollback();
+            $this->getConnection()->rollback();
             throw $ex;
         }
     }
@@ -348,10 +358,10 @@ class MySqlDriver extends AbstractDriver
             // combination technique async select sleep and select syscall
             // - select sleep:   able to kill, but unable to receive signal
             // - select syscall: unable to kill, but able to receive signal
-            $this->connection->query("/*by {$this->table}*/ SELECT IF(EXISTS({$this->selectJob()}), 1, SLEEP({$waittime})) AS c", MYSQLI_ASYNC);
+            $this->getConnection()->query("/*by {$this->table}*/ SELECT IF(EXISTS({$this->selectJob()}), 1, SLEEP({$waittime})) AS c", MYSQLI_ASYNC);
 
             do {
-                $read = $error = $reject = [$this->connection];
+                $read = $error = $reject = [$this->getConnection()];
                 if (@mysqli::poll($read, $error, $reject, 1) === false) {
                     // @codeCoverageIgnoreStart
                     $this->syscalled = true;
@@ -430,13 +440,13 @@ class MySqlDriver extends AbstractDriver
         if ($this->syscalled && isset($this->transport)) {
             $this->syscalled = false;
             $mysqli          = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $this->transport));
-            $mysqli->prepare("KILL QUERY {$this->connection->thread_id}")->execute();
+            $mysqli->prepare("KILL QUERY {$this->getConnection()->thread_id}")->execute();
             $mysqli->close();
-            $this->connection->reap_async_query();
+            $this->getConnection()->reap_async_query();
         }
 
         try {
-            $statement = $this->statements[$query] ??= $this->connection->prepare($query);
+            $statement = $this->statements[$query] ??= $this->getConnection()->prepare($query);
             if ($bind) {
                 $statement->bind_param(str_repeat('s', count($bind)), ...array_values($bind));
             }
@@ -478,6 +488,6 @@ class MySqlDriver extends AbstractDriver
 
     protected function query(string $query)
     {
-        return $this->connection->query($query);
+        return $this->getConnection()->query($query);
     }
 }
