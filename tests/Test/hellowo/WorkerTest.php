@@ -406,16 +406,16 @@ class WorkerTest extends AbstractTestCase
         $worker->restartClosure(fn() => null)(0, 0)->is(null);
 
         // int
-        $worker->restartClosure(11)(time() - 10, 0)->is(null);
-        $worker->restartClosure(11)(time() - 12, 0)->is(1);
+        $worker->restartClosure(11)(time() - 10, 0, 1)->is(null);
+        $worker->restartClosure(11)(time() - 12, 0, 2)->is(1);
 
         // change
-        $worker->restartClosure('change')(time(), 0)->is(null);
+        $worker->restartClosure('change')(time(), 0, 1)->is(null);
         touch(__FILE__);
-        $worker->restartClosure('change')(time() - 2, 0)->is(1);
+        $worker->restartClosure('change')(time() - 2, 0, 2)->is(1);
 
         // null or default
-        $worker->restartClosure(null)(0, 0)->is(null);
+        $worker->restartClosure(null)(0, 0, 0)->is(null);
 
         $worker->start(function () { })->wasThrown(ExitException::class);
     }

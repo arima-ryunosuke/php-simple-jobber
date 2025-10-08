@@ -89,13 +89,14 @@ class Worker extends API
         // main loop
         $start           = microtime(true);
         $cycle           = 0;
+        $workload        = 0;
         $continuity      = 0;
         $continuityLevel = 4;
         $stoodby         = $this->driver->isStandby();
         $this->logger->info("[{mypid}]{event}: {cycle}", ['event' => 'begin', 'mypid' => $mypid, 'cycle' => $cycle]);
         while ($running) {
             try {
-                $exitcode = ($this->restart)($start, $cycle);
+                $exitcode = ($this->restart)($start, $cycle, $workload);
                 if ($exitcode !== null) {
                     throw new ExitException("code $exitcode", $exitcode);
                 }
@@ -124,6 +125,7 @@ class Worker extends API
                         $this->listener->onBreather($cycle);
                     }
                     else {
+                        $workload++;
                         $continuity++;
                         $this->logger->info("[{mypid}]{event}: {job_id}", ['event' => 'job', 'mypid' => $mypid, 'job_id' => $message->getId()]);
 
@@ -173,7 +175,7 @@ class Worker extends API
                     $this->logger->warning("[{mypid}]{event}: {continuity}/{continuityLevel}", ['event' => 'busy', 'mypid' => $mypid, 'continuity' => $continuity, 'continuityLevel' => $continuityLevel]);
                 }
 
-                $this->logger->debug("[{mypid}]{event}: {cycle}, continuity: {continuity}", ['event' => 'cycle', 'mypid' => $mypid, 'cycle' => $cycle, 'continuity' => $continuity]);
+                $this->logger->debug("[{mypid}]{event}: {workload}/{cycle}, continuity: {continuity}", ['event' => 'cycle', 'mypid' => $mypid, 'cycle' => $cycle, 'workload' => $workload, 'continuity' => $continuity]);
                 $this->listener->onCycle($cycle);
                 pcntl::signal_dispatch();
                 gc_collect_cycles();
@@ -198,7 +200,7 @@ class Worker extends API
 
         $this->driver->close();
 
-        $this->logger->info("[{mypid}]{event}: {cycle}", ['event' => 'end', 'mypid' => $mypid, 'cycle' => $cycle]);
+        $this->logger->info("[{mypid}]{event}: {workload}/{cycle}", ['event' => 'end', 'mypid' => $mypid, 'cycle' => $cycle, 'workload' => $workload]);
     }
 
     private function restartClosure($restartMode): Closure
@@ -209,11 +211,11 @@ class Worker extends API
         }
         // lifetime
         if (is_int($restartMode) || is_float($restartMode)) {
-            return fn($start, $cycle) => (microtime(true) - $start) > $restartMode ? 1 : null;
+            return fn($start, $cycle, $workload) => (microtime(true) - $start) > $restartMode ? 1 : null;
         }
         // included file was modified
         if ($restartMode == 'change') {
-            return function ($start, $cycle) {
+            return function ($start, $cycle, $workload) {
                 foreach (get_included_files() as $filename) {
                     $mtime = file_exists($filename) ? filemtime($filename) : PHP_INT_MAX;
                     if ($mtime > $start) {
