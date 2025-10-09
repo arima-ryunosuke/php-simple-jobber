@@ -10,6 +10,7 @@ use RuntimeException;
 use ryunosuke\hellowo\API;
 use ryunosuke\hellowo\Exception\UnsupportedException;
 use ryunosuke\hellowo\ext\posix;
+use Throwable;
 
 abstract class AbstractDriver extends API
 {
@@ -189,6 +190,26 @@ abstract class AbstractDriver extends API
     {
         return $this->description;
     }
+
+    public function transactional(callable $callback, ...$args)
+    {
+        $this->begin();
+        try {
+            $result = $callback(...$args);
+            $this->commit();
+            return $result;
+        }
+        catch (Throwable $t) {
+            $this->rollback();
+            throw $t;
+        }
+    }
+
+    protected function begin() { }
+
+    protected function commit() { }
+
+    protected function rollback() { }
 
     protected function daemonize(): void
     {

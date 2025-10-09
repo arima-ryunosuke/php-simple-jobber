@@ -74,6 +74,11 @@ class Client extends API
         return $ids;
     }
 
+    public function transactional(callable $callable, ...$args)
+    {
+        return $this->driver->transactional($callable, ...$args);
+    }
+
     public function notify(int $count = 1): int
     {
         $this->logger->info("{event}: {vars}", ['event' => 'notify', 'vars' => $this->logString(get_defined_vars())]);

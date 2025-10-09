@@ -236,13 +236,13 @@ class MySqlDriver extends AbstractDriver
         $jobs = $this->shareJob($this->sharedFile, $this->waittime, fn() => array_column($this->execute($this->selectJob(['job_id', 'priority'], 256)), null, 'job_id'));
 
         foreach ($jobs as $job_id => $job) {
-            $this->getConnection()->begin_transaction();
+            $this->begin();
             try {
                 $row = $this->execute("SELECT * FROM {$this->table} WHERE job_id = ? FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
 
                 if ($row === null) {
                     $this->unshareJob($this->sharedFile, $job_id);
-                    $this->getConnection()->rollback();
+                    $this->rollback();
                     continue;
                 }
 
@@ -265,11 +265,11 @@ class MySqlDriver extends AbstractDriver
                     }
                 }
                 $this->unshareJob($this->sharedFile, $job_id);
-                $this->getConnection()->commit();
+                $this->commit();
                 return;
             }
             catch (Throwable $ex) {
-                $this->getConnection()->rollback();
+                $this->rollback();
                 throw $ex;
             }
         }
@@ -316,7 +316,7 @@ class MySqlDriver extends AbstractDriver
 
     protected function cancel(?string $job_id = null, ?string $contents = null): int
     {
-        $this->getConnection()->begin_transaction();
+        $this->begin();
         try {
             // cannot cancel items already in progress
             $where  = 'FALSE';
@@ -336,11 +336,11 @@ class MySqlDriver extends AbstractDriver
                 $count = $this->execute("DELETE FROM {$this->table} WHERE job_id IN (" . implode(',', array_fill(0, count($job_ids), '?')) . ")", $job_ids, false);
             }
 
-            $this->getConnection()->commit();
+            $this->commit();
             return $count;
         }
         catch (Throwable $ex) {
-            $this->getConnection()->rollback();
+            $this->rollback();
             throw $ex;
         }
     }
@@ -489,5 +489,20 @@ class MySqlDriver extends AbstractDriver
     protected function query(string $query)
     {
         return $this->getConnection()->query($query);
+    }
+
+    protected function begin()
+    {
+        $this->getConnection()->begin_transaction();
+    }
+
+    protected function commit()
+    {
+        $this->getConnection()->commit();
+    }
+
+    protected function rollback()
+    {
+        $this->getConnection()->rollback();
     }
 }

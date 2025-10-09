@@ -186,13 +186,13 @@ class PostgreSqlDriver extends AbstractDriver
         $jobs = $this->shareJob($this->sharedFile, $this->waittime, fn() => array_column($this->execute("SELECT job_id, priority FROM {$this->table} WHERE start_at <= NOW() AND error IS NULL ORDER BY priority DESC LIMIT 256 FOR UPDATE SKIP LOCKED"), null, 'job_id'));
 
         foreach ($jobs as $job_id => $job) {
-            $this->execute('BEGIN');
+            $this->begin();
             try {
                 $row = $this->execute("SELECT * FROM {$this->table} WHERE job_id = $1 FOR UPDATE SKIP LOCKED", [$job_id])[0] ?? null;
 
                 if ($row === null) {
                     $this->unshareJob($this->sharedFile, $job_id);
-                    $this->execute('ROLLBACK');
+                    $this->rollback();
                     continue;
                 }
 
@@ -215,11 +215,11 @@ class PostgreSqlDriver extends AbstractDriver
                     }
                 }
                 $this->unshareJob($this->sharedFile, $job_id);
-                $this->execute('COMMIT');
+                $this->commit();
                 return;
             }
             catch (Throwable $ex) {
-                $this->execute('ROLLBACK');
+                $this->rollback();
                 throw $ex;
             }
         }
@@ -269,7 +269,7 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function cancel(?string $job_id = null, ?string $contents = null): int
     {
-        $this->execute('BEGIN');
+        $this->begin();
         try {
             // cannot cancel items already in progress
             $where  = 'FALSE';
@@ -289,11 +289,11 @@ class PostgreSqlDriver extends AbstractDriver
                 $count = $this->execute("DELETE FROM {$this->table} WHERE job_id IN (" . implode(',', array_map(fn($n) => "\$$n", range(1, count($job_ids)))) . ")", $job_ids, false);
             }
 
-            $this->execute('COMMIT');
+            $this->commit();
             return $count;
         }
         catch (Throwable $ex) {
-            $this->execute('ROLLBACK');
+            $this->rollback();
             throw $ex;
         }
     }
@@ -391,5 +391,20 @@ class PostgreSqlDriver extends AbstractDriver
     protected function query(string $query)
     {
         return pg_query($this->getConnection(), $query);
+    }
+
+    protected function begin()
+    {
+        $this->execute('BEGIN');
+    }
+
+    protected function commit()
+    {
+        $this->execute('COMMIT');
+    }
+
+    protected function rollback()
+    {
+        $this->execute('ROLLBACK');
     }
 }

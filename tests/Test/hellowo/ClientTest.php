@@ -4,6 +4,7 @@ namespace ryunosuke\Test\hellowo;
 
 use ArrayListener;
 use ArrayLogger;
+use Exception;
 use ryunosuke\hellowo\Client;
 use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\Test\AbstractTestCase;
@@ -14,6 +15,7 @@ class ClientTest extends AbstractTestCase
     {
         return new class($data) extends AbstractDriver {
             private $data;
+            private $tmp;
 
             public function __construct(&$data)
             {
@@ -44,6 +46,18 @@ class ClientTest extends AbstractTestCase
                 $result     = count($this->data);
                 $this->data = [];
                 return $result;
+            }
+
+            protected function begin()
+            {
+                $this->tmp = $this->data;
+            }
+
+            protected function commit() { }
+
+            protected function rollback()
+            {
+                $this->data = $this->tmp;
             }
         };
     }
@@ -147,5 +161,32 @@ class ClientTest extends AbstractTestCase
         ]);
 
         $client->clear()->is(7);
+    }
+
+    function test_transactional()
+    {
+        $client = that(new Client([
+            'driver'   => $this->createDriver($data),
+            'logger'   => new ArrayLogger($logs),
+            'listener' => new ArrayListener($events),
+        ]));
+
+        $client->setup();
+
+        $client->transactional(function ($a, $b, $c) use ($client) {
+            $client->sendBulk([$a, $b, $c]);
+        }, 1, 2, 3);
+
+        $data = [];
+        try {
+            $client->transactional(function ($a, $b, $c) use ($client) {
+                $client->send($a);
+                $client->send($b);
+                throw new Exception($c);
+            }, 1, 2, 3);
+        }
+        catch (Exception $e) {
+            that($e->getMessage())->is(3);
+        }
     }
 }
