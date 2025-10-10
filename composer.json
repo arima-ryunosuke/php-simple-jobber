@@ -54,11 +54,15 @@
       "php -d disable_functions=register_shutdown_function vendor/phpunit/phpunit/phpunit --configuration=tests/phpunit.xml"
     ],
     "stress": [
-      "sh tests/integration.sh filesystem",
-      "sh tests/integration.sh beanstalk",
-      "sh tests/integration.sh gearman",
-      "sh tests/integration.sh mysql",
-      "sh tests/integration.sh pgsql"
+      "php tests/integration.php filesystem work",
+      "php tests/integration.php beanstalk work",
+      "php tests/integration.php gearman work",
+      "php tests/integration.php mysql work",
+      "php tests/integration.php pgsql work",
+      "php tests/integration.php filesystem fork",
+      "php tests/integration.php beanstalk fork",
+      "php tests/integration.php mysql fork",
+      "php tests/integration.php pgsql fork"
     ]
   }
 }
