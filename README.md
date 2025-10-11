@@ -60,117 +60,40 @@ You can use `send` or `sendBulk` for add job.
 ## Demo
 
 - Driver: mysql
-- Parallel: 4
+- Parallel: 4-8
 - Log: /var/log/hellowo
 
-require root.
-
-### ready
-
 ```bash
-sudo su -
-WORKDIR=/path/to/hellowo
+sudo sh demo/install.sh
+sudo systemctl restart hellowo
+php demo/client.php 100
 ```
 
-### ready driver
+### execution log
 
 ```bash
-cat << 'EOS' > $WORKDIR/driver.php
-<?php
-require_once __DIR__ . '/vendor/autoload.php';
-return new ryunosuke\hellowo\Driver\MySqlDriver([
-    'transport'  => [
-        'host'     => '127.0.0.1',
-        'username' => 'root',
-        'password' => 'password',
-    ],
-    // job database.table name
-    'database'   => 'test',
-    'table'      => 't_job',
-    'waittime'   => 2.0,
-    'waitmode'   => 'php',
-    'sharedFile' => '/tmp/jobs.txt',
-]);
-EOS
-```
-
-### ready worker
-
-```bash
-cat << 'EOS' > $WORKDIR/worker.php
-<?php
-$driver = require __DIR__ . '/driver.php';
-$worker = new ryunosuke\hellowo\Worker(['driver' => $driver]);
-$worker->start(function (ryunosuke\hellowo\Message $message) {
-    file_put_contents('/var/log/hellowo/receive.log', "$message\n", FILE_APPEND | LOCK_EX);
-});
-EOS
-```
-
-### ready systemd
-
-```bash
-cat << EOS > /etc/systemd/system/example@.service
-[Unit]
-After=network.target
-PartOf=example.target
-
-[Service]
-Type=simple
-Environment=SYSTEMD_SERVICE_ID=%i
-ExecStartPre=/bin/mkdir -p /var/log/hellowo
-ExecStart=/bin/sh -c 'exec /usr/bin/php $WORKDIR/worker.php 1>/var/log/hellowo/stdout-%i.log 2>/var/log/hellowo/stderr-%i.log'
-TimeoutStopSec=90s
-Restart=always
-
-[Install]
-EOS
-
-cat << EOS > /etc/systemd/system/example.target
-[Unit]
-Wants=example@1.service
-Wants=example@2.service
-Wants=example@3.service
-Wants=example@4.service
-
-[Install]
-WantedBy=multi-user.target
-EOS
-
-systemctl daemon-reload
-systemctl restart example.target
-systemctl status example@*
-```
-
-### ready client
-
-```bash
-cat << 'EOS' > $WORKDIR/client.php
-<?php
-$driver = require __DIR__ . '/driver.php';
-$client = new ryunosuke\hellowo\Client(['driver' => $driver]);
-$client->sendBulk(array_map(fn($v) => "data-$v", range(1, 99)));
-EOS
-
-php client.php
-```
-
-### output log
-
-```bash
-cat /var/log/hellowo/stdout-*.log
+cat /var/log/hellowo/stdout.log
 [Y-m-dTH:i:s.v][1045984] ...
 [Y-m-dTH:i:s.v][1045984] ...
 [Y-m-dTH:i:s.v][1045984] ...
+```
 
+### receive data
+
+```bash
 cat -n /var/log/hellowo/receive.log
-data-8
-data-17
-data-15
-...
-data-98
-data-96
-data-99
+     1  data-0017
+     2  data-0001
+     3  data-0005
+     4  data-0021
+     5  data-0010
+    ...
+    95  data-0087
+    96  data-0092
+    97  data-0089
+    98  data-0098
+    99  data-0100
+   100  data-0099
 ```
 
 ## License
@@ -189,6 +112,16 @@ Versioning is romantic versioning(no semantic versioning).
 
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
+
+### 1.2.4
+
+- [feature] fork モードを仮実装
+- [feature] transaction を外だし
+- [feature] register_shutdown_function を模倣する機能
+- [feature] client/worker が共通コネクションの driver の遅延接続
+- [feature] continue/breather の正規化
+- [feature] restart の引数に workload(処理回数) を追加
+- [feature] ログ回りの改善
 
 ### 1.2.3
 
