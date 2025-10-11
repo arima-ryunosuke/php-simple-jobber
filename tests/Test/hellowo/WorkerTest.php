@@ -428,4 +428,33 @@ class WorkerTest extends AbstractTestCase
 
         $worker->start(function () { })->wasThrown(ExitException::class);
     }
+
+    function test_shutdown()
+    {
+        $worker = that(new Worker([
+            'driver' => $this->createDriver(function ($count) { return new Message($count, $count, 0, 0); }),
+            'logger' => new ArrayLogger($logs),
+        ]));
+
+        $receiver  = [];
+        $generator = $worker->generateWork(function ($message) use (&$receiver) {
+            if (strpos(ini_get('disable_functions'), 'register_shutdown_function') === false) {
+                $GLOBALS['hellowo-shutdown_function'][] = [
+                    function ($message) use (&$receiver) {
+                        $receiver[] = $message->getId();
+                    },
+                    [$message],
+                ];
+            }
+            else {
+                register_shutdown_function(function ($message) use (&$receiver) {
+                    $receiver[] = $message->getId();
+                }, $message);
+            }
+        }, []);
+        $generator->next();
+        $generator->next();
+
+        that($receiver)->is(["1", "2"]);
+    }
 }

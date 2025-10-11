@@ -55,6 +55,17 @@ class Worker extends API
         $this->signals  = ($options['signals'] ?? []) + self::HANDLING_SIGNALS;
         $this->timeout  = $options['timeout'] ?? 0;
         $this->restart  = $this->restartClosure($options['restart'] ?? null);
+
+        eval(<<<'PHP'
+        namespace {
+            if (!function_exists('register_shutdown_function')) {
+                function register_shutdown_function(callable $callback, mixed ...$args)
+                {
+                    return $GLOBALS['hellowo-shutdown_function'][] = [$callback, $args];
+                }
+            }
+        }
+        PHP);
     }
 
     /**
@@ -184,6 +195,13 @@ class Worker extends API
                     $continuityLevel = $level;
                     $this->logger->info("[{mypid}]{event}: {continuity}/{continuityLevel}", ['event' => 'idle', 'mypid' => $mypid, 'continuity' => $continuity, 'continuityLevel' => $continuityLevel]);
                     $this->listener->onIdle($continuity);
+                }
+
+                if (isset($GLOBALS['hellowo-shutdown_function'])) {
+                    foreach ($GLOBALS['hellowo-shutdown_function'] as [$callback, $args]) {
+                        $callback(...$args);
+                    }
+                    $GLOBALS['hellowo-shutdown_function'] = [];
                 }
 
                 $this->logger->debug("[{mypid}]{event}: {workload}/{cycle}, continuity: {continuity}", ['event' => 'cycle', 'mypid' => $mypid, 'cycle' => $cycle, 'workload' => $workload, 'continuity' => $continuity]);
