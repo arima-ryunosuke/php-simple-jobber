@@ -357,6 +357,11 @@ class Worker extends API
         try {
             // main loop
             while (!$exited) {
+                $exitcode = ($this->restart)($start, -1, -1);
+                if ($exitcode !== null) {
+                    throw new ExitException("code $exitcode", $exitcode);
+                }
+
                 $waitTime        = (yield $pids) ?? 10;
                 $waitSecond      = (int) $waitTime;
                 $waitMicrosecond = (int) (($waitTime - $waitSecond) * 1000 * 1000);
@@ -432,6 +437,10 @@ class Worker extends API
                     }
                 }
             }
+        }
+        catch (ExitException $e) {
+            $this->logger->notice("[{mypid}][master]{event}: {exception}", ['event' => 'exit', 'mypid' => $mypid, 'exception' => $this->logString($e)]);
+            $e->exit();
         }
         finally {
             foreach ($pids as $pid => $pdata) {

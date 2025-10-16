@@ -557,6 +557,14 @@ class WorkerTest extends AbstractTestCase
         $worker->restartClosure(null)(0, 0, 0)->is(null);
 
         $worker->work(function () { })->wasThrown(ExitException::class);
+
+        $ipcSockets = stream_socket_pair(DIRECTORY_SEPARATOR === '\\' ? STREAM_PF_INET : STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        stream_set_blocking($ipcSockets[0], false);
+        stream_set_blocking($ipcSockets[1], false);
+
+        /** @var Generator $generator */
+        $generator = $worker->generateFork(fn() => null, 4, 8, $ipcSockets);
+        $generator->send(0.1)->wasThrown(ExitException::class);
     }
 
     function test_shutdown()
