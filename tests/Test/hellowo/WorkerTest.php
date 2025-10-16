@@ -332,7 +332,7 @@ class WorkerTest extends AbstractTestCase
         }
 
         that($logs)->matchesCountEquals([
-            '#^\\[\\d+\\]setup: caught#' => 1,
+            '#^\\[\\d+\\]setup: RuntimeException: setup failed#' => 1,
         ]);
         that($stdout)->fileEquals("1234");
     }

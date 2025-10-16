@@ -4,7 +4,6 @@ namespace ryunosuke\Test\hellowo;
 
 use ArrayObject;
 use JsonSerializable;
-use RuntimeException;
 use ryunosuke\hellowo\API;
 use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\Test\AbstractTestCase;
@@ -94,7 +93,6 @@ class APITest extends AbstractTestCase
         $api->logString([null, 1, 'hoge', STDOUT, [1, 2, 3]])->is('[null,1,"hoge","Resource id #2",[1,2,3]]');
         $api->logString((object) ['hoge' => 'HOGE'])->is('{"hoge":"HOGE"}');
         $api->logString(new SplFileInfo('file'))->is('file');
-        $api->logString(new RuntimeException('msg', 3))->stringStartsWith('caught RuntimeException(3, msg) in');
         $api->logString(new ArrayObject(['a', 'b']))->is('ArrayObject{"0":"a","1":"b"}');
         $api->logString(new class() implements JsonSerializable {
             #[\ReturnTypeWillChange]

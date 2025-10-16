@@ -9,7 +9,6 @@ use JsonSerializable;
 use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\hellowo\ext\posix;
 use stdClass;
-use Throwable;
 
 /**
  * API spec class
@@ -164,9 +163,6 @@ abstract class API
         }
 
         array_walk_recursive($log_data, function (&$v) {
-            if ($v instanceof Throwable) {
-                $v = sprintf('caught %s(%s, %s) in %s:%s', get_class($v), $v->getCode(), $v->getMessage(), $v->getFile(), $v->getLine());
-            }
             if (is_resource($v) || (is_object($v) && method_exists($v, '__toString'))) {
                 $v = (string) $v;
             }

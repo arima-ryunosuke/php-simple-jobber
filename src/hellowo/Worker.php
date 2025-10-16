@@ -119,7 +119,7 @@ class Worker extends API
             $this->driver->daemonize();
         }
         catch (Exception $e) {
-            $this->logger->warning("[{mypid}]{event}: {exception}", ['event' => 'setup', 'mypid' => $mypid, 'exception' => $this->logString($e)]);
+            $this->logger->warning("[{mypid}]{event}: {exception}", ['event' => 'setup', 'mypid' => $mypid, 'exception' => $e]);
         }
 
         // signal handling
@@ -201,12 +201,12 @@ class Worker extends API
                             $this->listener->onTimeout($message, $e);
                         }
                         catch (Exception $e) {
-                            $this->logger->error("[{mypid}]{event}: {exception}", ['event' => 'fail', 'mypid' => $mypid, 'exception' => $this->logString($e)]);
+                            $this->logger->error("[{mypid}]{event}: {exception}", ['event' => 'fail', 'mypid' => $mypid, 'exception' => $e]);
                             $generator->send($e);
                             $this->listener->onFail($message, $e);
                         }
                         finally {
-                            $this->logger->info("[{mypid}]{event}: {job_id}({elapsed}) seconds", ['event' => 'finish', 'mypid' => $mypid, 'job_id' => $message->getId(), 'elapsed' => microtime(true) - $microtime]);
+                            $this->logger->info("[{mypid}]{event}: {job_id}({elapsed} seconds)", ['event' => 'finish', 'mypid' => $mypid, 'job_id' => $message->getId(), 'elapsed' => microtime(true) - $microtime]);
                             $this->listener->onFinish($message);
                         }
                     }
@@ -255,18 +255,18 @@ class Worker extends API
                 $cycle++;
             }
             catch (ExitException $e) {
-                $this->logger->notice("[{mypid}]{event}: {exception}", ['event' => 'exit', 'mypid' => $mypid, 'exception' => $this->logString($e)]);
+                $this->logger->notice("[{mypid}]{event}: {exception}", ['event' => 'exit', 'mypid' => $mypid, 'exception' => $e]);
                 $e->exit();
             }
             catch (Exception $e) {
-                $this->logger->error("[{mypid}]{event}: {exception}", ['event' => 'exception', 'mypid' => $mypid, 'exception' => $this->logString($e)]);
+                $this->logger->error("[{mypid}]{event}: {exception}", ['event' => 'exception', 'mypid' => $mypid, 'exception' => $e]);
                 if ($this->driver->error($e)) {
                     throw $e;
                 }
                 usleep(0.1 * 1000 * 1000);
             }
             catch (Throwable $t) {
-                $this->logger->critical("[{mypid}]{event}: {exception}", ['event' => 'error', 'mypid' => $mypid, 'exception' => $this->logString($t)]);
+                $this->logger->critical("[{mypid}]{event}: {exception}", ['event' => 'error', 'mypid' => $mypid, 'exception' => $t]);
                 throw $t;
             }
         }
@@ -430,7 +430,7 @@ class Worker extends API
                 if ($reloaded) {
                     $reloaded = false;
                     if (count($pids) > $leastCount) {
-                        $this->logger->notice("[{mypid}][master]{event}: failed at increased process", ['event' => "respawn", 'mypid' => $mypid]);
+                        $this->logger->notice("[{mypid}][master]{event}: failed at increased process", ['event' => 'respawn', 'mypid' => $mypid]);
                     }
                     foreach ($pids as $pid => $pdata) {
                         $kill($pid);
@@ -439,7 +439,7 @@ class Worker extends API
             }
         }
         catch (ExitException $e) {
-            $this->logger->notice("[{mypid}][master]{event}: {exception}", ['event' => 'exit', 'mypid' => $mypid, 'exception' => $this->logString($e)]);
+            $this->logger->notice("[{mypid}][master]{event}: {exception}", ['event' => 'exit', 'mypid' => $mypid, 'exception' => $e]);
             $e->exit();
         }
         finally {
