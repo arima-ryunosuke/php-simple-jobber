@@ -74,22 +74,27 @@ class posix
         }
     }
 
-    public static function pgrep(string $line): array
+    public static function pgrep(string $pattern): array
     {
-        if (file_exists("/usr/bin/pgrep")) {
-            exec("/usr/bin/pgrep -af '$line'", $output);
+        if (DIRECTORY_SEPARATOR === '/' && file_exists("/proc")) {
             $result = [];
-            foreach ($output as $line) {
-                $parts             = preg_split('#\\s+#u', $line, 2, PREG_SPLIT_NO_EMPTY);
-                $result[$parts[0]] = $parts[1];
+            foreach (glob("/proc/*") as $proc) {
+                $pid = basename($proc);
+                if (ctype_digit($pid) && file_exists($cmdline = "$proc/cmdline")) {
+                    $cmdline = trim(implode(' ', explode("\0", file_get_contents($cmdline))));
+                    if (preg_match($pattern, $cmdline)) {
+                        $result[$pid] = $cmdline;
+                    }
+                }
             }
             return $result;
         }
 
         $result = [];
         foreach ($GLOBALS['hellowo-processes'] ?? [] as $pid => $process) {
-            if (strpos($process['cmdline'] ?? '', $line) !== false) {
-                $result[$pid] = $process['cmdline'];
+            $cmdline = $process['cmdline'] ?? '';
+            if (preg_match($pattern, $cmdline)) {
+                $result[$pid] = $cmdline;
             }
         }
 

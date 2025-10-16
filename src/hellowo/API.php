@@ -31,7 +31,8 @@ abstract class API
      */
     public function notifyLocal(int $count = 1): array
     {
-        $processes = array_keys(posix::pgrep('#{$this->name}'));
+        $name      = preg_quote($this->name, '/');
+        $processes = array_keys(posix::pgrep("/\\#{$name}$/"));
         shuffle($processes);
 
         $result = [];

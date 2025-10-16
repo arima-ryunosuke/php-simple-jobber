@@ -9,6 +9,7 @@ use ryunosuke\hellowo\ext\pcntl;
 use ryunosuke\Test\AbstractTestCase;
 use SplFileInfo;
 use Stringable;
+use Symfony\Component\Process\PhpProcess;
 
 class APITest extends AbstractTestCase
 {
@@ -19,14 +20,28 @@ class APITest extends AbstractTestCase
 
     function test_notifyLocal()
     {
-        if (DIRECTORY_SEPARATOR === '/') {
-            $this->markTestSkipped();
-        }
-
         srand(1);
 
         $api       = that($this->createAPI());
         $api->name = 'hellowo';
+
+        if (DIRECTORY_SEPARATOR === '/') {
+            $script = '<?php cli_set_process_title("#hellowo"); sleep(100);';
+            $p1     = new PhpProcess($script);
+            $p2     = new PhpProcess($script);
+            $p1->start();
+            $p2->start();
+            usleep(100 * 1000);
+
+            $api->notifyLocal(1)->is([$p1->getPid()]);
+            $api->notifyLocal(1)->is([$p2->getPid()]);
+            $api->notifyLocal(1)->is([]);
+
+            that($p1->getTermSignal())->is(pcntl::SIGUSR1);
+            that($p2->getTermSignal())->is(pcntl::SIGUSR1);
+
+            return;
+        }
 
         $GLOBALS['hellowo-processes'][1234]['cmdline'] = '#hellowo';
         $GLOBALS['hellowo-processes'][9999]['cmdline'] = '#hellowo';
