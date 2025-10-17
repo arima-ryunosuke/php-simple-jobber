@@ -134,9 +134,10 @@ class AbstractDriverTest extends AbstractTestCase
         $driver = that(new class ("") extends AbstractDriver {
             protected function notify(int $count = 1): int
             {
-                return count(parent::notifyLocal($count));
+                return count($this->notifyLocal($count));
             }
         });
+        $driver->name = 'hellowo';
 
         $driver->normalizeParams([])->is([]);
 

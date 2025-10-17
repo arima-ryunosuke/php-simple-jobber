@@ -23,13 +23,15 @@ abstract class API
         pcntl::SIGTERM => null,
     ];
 
+    protected string $name = "";
+
     /**
      * @param int $count
      * @return array notified pid
      */
-    public static function notifyLocal(int $count = 1): array
+    public function notifyLocal(int $count = 1): array
     {
-        $processes = array_keys(posix::pgrep('#hellowo'));
+        $processes = array_keys(posix::pgrep('#{$this->name}'));
         shuffle($processes);
 
         $result = [];

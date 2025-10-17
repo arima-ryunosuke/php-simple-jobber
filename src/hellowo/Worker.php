@@ -51,6 +51,7 @@ class Worker extends API
             throw new InvalidArgumentException("listener must be Listener");
         }
 
+        $this->name     = $options['name'] ?? 'hellowo';
         $this->driver   = $options['driver'];
         $this->logger   = $options['logger'] ?? new EchoLogger(LogLevel::DEBUG);
         $this->listener = $options['listener'] ?? new NullListener();
@@ -111,6 +112,11 @@ class Worker extends API
     {
         $running = true;
         $mypid   = getmypid();
+
+        // initialize
+        $cmdline = posix::proc_cmdline();
+        posix::proc_cmdline("{$cmdline}#{$this->name}");
+        $this->driver->name = $this->name;
 
         // setup
         $this->logger->info("[{mypid}]{event}: {driver}", ['event' => 'start', 'mypid' => $mypid, 'driver' => $this->logString($this->driver)]);

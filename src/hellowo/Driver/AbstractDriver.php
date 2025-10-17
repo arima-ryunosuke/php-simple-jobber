@@ -9,7 +9,6 @@ use ReflectionMethod;
 use RuntimeException;
 use ryunosuke\hellowo\API;
 use ryunosuke\hellowo\Exception\UnsupportedException;
-use ryunosuke\hellowo\ext\posix;
 use Throwable;
 
 abstract class AbstractDriver extends API
@@ -211,10 +210,7 @@ abstract class AbstractDriver extends API
 
     protected function rollback() { }
 
-    protected function daemonize(): void
-    {
-        posix::proc_cmdline(posix::proc_cmdline() . '#hellowo');
-    }
+    protected function daemonize(): void { }
 
     protected function encode(array $contents): string
     {

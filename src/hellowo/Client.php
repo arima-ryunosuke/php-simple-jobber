@@ -32,6 +32,7 @@ class Client extends API
             throw new InvalidArgumentException("listener must be Listener");
         }
 
+        $this->name     = $options['name'] ?? 'hellowo';
         $this->driver   = $options['driver'];
         $this->logger   = $options['logger'] ?? new NullLogger();
         $this->listener = $options['listener'] ?? new NullListener();

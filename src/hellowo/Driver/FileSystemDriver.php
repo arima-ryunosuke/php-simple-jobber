@@ -187,7 +187,7 @@ class FileSystemDriver extends AbstractDriver
             return 0;
         }
         elseif ($this->waitmode === 'php') {
-            return count(parent::notifyLocal($count));
+            return count($this->notifyLocal($count));
         }
     }
 

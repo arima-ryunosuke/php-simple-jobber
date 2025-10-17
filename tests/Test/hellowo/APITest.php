@@ -25,15 +25,18 @@ class APITest extends AbstractTestCase
 
         srand(1);
 
+        $api       = that($this->createAPI());
+        $api->name = 'hellowo';
+
         $GLOBALS['hellowo-processes'][1234]['cmdline'] = '#hellowo';
         $GLOBALS['hellowo-processes'][9999]['cmdline'] = '#hellowo';
 
-        that(API::class)::notifyLocal(1)->is([1234]);
+        $api->notifyLocal(1)->is([1234]);
 
         that($GLOBALS['hellowo-processes'][1234]['signal'])->is([pcntl::SIGUSR1]);
         @that($GLOBALS['hellowo-processes'][9999]['signal'])->is(null);
 
-        that(API::class)::notifyLocal(99)->is([1234, 9999]);
+        $api->notifyLocal(99)->is([1234, 9999]);
 
         that($GLOBALS['hellowo-processes'][1234]['signal'])->is([pcntl::SIGUSR1, pcntl::SIGUSR1]);
         that($GLOBALS['hellowo-processes'][9999]['signal'])->is([pcntl::SIGUSR1]);

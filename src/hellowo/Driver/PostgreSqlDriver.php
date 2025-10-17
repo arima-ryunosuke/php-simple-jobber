@@ -263,7 +263,7 @@ class PostgreSqlDriver extends AbstractDriver
             return $this->execute("NOTIFY hellowo_awake");
         }
         elseif ($this->waitmode === 'php') {
-            return count(parent::notifyLocal($count));
+            return count($this->notifyLocal($count));
         }
     }
 
