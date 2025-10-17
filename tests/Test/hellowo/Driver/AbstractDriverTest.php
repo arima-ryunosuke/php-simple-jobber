@@ -179,15 +179,17 @@ class AbstractDriverTest extends AbstractTestCase
 
         $driver = that(new class ( "" ) extends AbstractDriver { });
 
-        $driver->shareJob($jobFilename, 2, fn() => [1 => ['id' => 1]], 123)->isSame([1 => ['id' => 1]]); // first
-        $driver->shareJob($jobFilename, 2, fn() => [2 => ['id' => 2]], 124)->isSame([1 => ['id' => 1]]); // within expiration
-        $driver->shareJob($jobFilename, 2, fn() => [3 => ['id' => 3]], 125)->isSame([3 => ['id' => 3]]); // expired
+        $driver->shareJob($jobFilename, 2, 1, fn() => [1 => ['id' => 1]], 123)->isSame([1 => ['id' => 1]]); // first
+        $driver->shareJob($jobFilename, 2, 1, fn() => [2 => ['id' => 2]], 124)->isSame([1 => ['id' => 1]]); // within expiration
+        $driver->shareJob($jobFilename, 2, 1, fn() => [3 => ['id' => 3]], 125)->isSame([3 => ['id' => 3]]); // expired
+        $driver->unshareJob($jobFilename, 3)->isSame(['id' => 3]);
+        $driver->shareJob($jobFilename, 2, 1, fn() => [4 => ['id' => 4]], 125)->isSame([4 => ['id' => 4]]); // reselect
 
-        $driver->shareJob($jobFilename, 2, fn() => [1 => ['id' => 1], 2 => ['id' => 2]], 127)->isSame([1 => ['id' => 1], 2 => ['id' => 2]]);
+        $driver->shareJob($jobFilename, 2, 2, fn() => [1 => ['id' => 1], 2 => ['id' => 2]], 127)->isSame([1 => ['id' => 1], 2 => ['id' => 2]]);
         $driver->unshareJob($jobFilename, 1)->isSame(['id' => 1]);
-        $driver->shareJob($jobFilename, 2, fn() => [3 => ['id' => 3]], 127)->isSame([2 => ['id' => 2]]); // not return id:1
+        $driver->shareJob($jobFilename, 2, 1, fn() => [3 => ['id' => 3]], 127)->isSame([2 => ['id' => 2]]); // not return id:1
 
-        $driver->shareJob($jobFilename, 2, fn() => [1 => ['id' => 1, 'priority' => 1], 2 => ['id' => 2, 'priority' => 2]], 130)->isSame([
+        $driver->shareJob($jobFilename, 2, 2, fn() => [1 => ['id' => 1, 'priority' => 1], 2 => ['id' => 2, 'priority' => 2]], 130)->isSame([
             1 => [
                 "id"       => 1,
                 "priority" => 1,
@@ -197,7 +199,7 @@ class AbstractDriverTest extends AbstractTestCase
                 "priority" => 2,
             ],
         ]);
-        $driver->shareJob($jobFilename, 2, fn() => [], 131)->isSame([
+        $driver->shareJob($jobFilename, 2, 2, fn() => [], 131)->isSame([
             2 => [
                 "id"       => 2,
                 "priority" => 2,

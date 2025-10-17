@@ -253,7 +253,7 @@ abstract class AbstractDriver extends API
         return max(0, $time->format('U.v') - microtime(true));
     }
 
-    protected function shareJob(?string $sharedFile, float $waittime, callable $select, ?float $now = null): array
+    protected function shareJob(?string $sharedFile, float $waittime, int $nextlimit, callable $select, ?float $now = null): array
     {
         if ($sharedFile === null) {
             return $select();
@@ -269,19 +269,26 @@ abstract class AbstractDriver extends API
             $cache = json_decode(stream_get_contents($fp), true);
             $last  = $cache['last'] ?? 0;
             $jobs  = $cache['jobs'] ?? [];
+            $next  = $cache['next'] ?? false;
 
+            // do reselect if has next and no job
+            if ($next && empty($jobs)) {
+                // through
+            }
             // return cache if within expiration
-            if (($now - $last) < $waittime) {
+            elseif (($now - $last) < $waittime) {
                 // randomize jobs for stuck
                 uasort($jobs, fn($a, $b) => -(($a['priority'] ?? null) <=> ($b['priority'] ?? null)) ?: rand(-1, 1));
                 return $jobs;
             }
 
+            $jobs = $select();
             fseek($fp, 0);
             ftruncate($fp, 0);
             fwrite($fp, json_encode([
                 'last' => $now,
-                'jobs' => $jobs = $select(),
+                'jobs' => $jobs,
+                'next' => count($jobs) === $nextlimit,
             ]));
             fflush($fp);
 

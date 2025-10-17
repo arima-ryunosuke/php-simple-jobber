@@ -233,7 +233,7 @@ class MySqlDriver extends AbstractDriver
 
     protected function select(): Generator
     {
-        $jobs = $this->shareJob($this->sharedFile, $this->waittime, fn() => array_column($this->execute($this->selectJob(['job_id', 'priority'], 256)), null, 'job_id'));
+        $jobs = $this->shareJob($this->sharedFile, $this->waittime, 256, fn() => array_column($this->execute($this->selectJob(['job_id', 'priority'], 256)), null, 'job_id'));
 
         foreach ($jobs as $job_id => $job) {
             $this->begin();

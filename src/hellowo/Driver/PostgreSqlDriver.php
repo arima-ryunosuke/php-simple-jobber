@@ -183,7 +183,7 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function select(): Generator
     {
-        $jobs = $this->shareJob($this->sharedFile, $this->waittime, fn() => array_column($this->execute("SELECT job_id, priority FROM {$this->table} WHERE start_at <= NOW() AND error IS NULL ORDER BY priority DESC LIMIT 256 FOR UPDATE SKIP LOCKED"), null, 'job_id'));
+        $jobs = $this->shareJob($this->sharedFile, $this->waittime, 256, fn() => array_column($this->execute("SELECT job_id, priority FROM {$this->table} WHERE start_at <= NOW() AND error IS NULL ORDER BY priority DESC LIMIT 256 FOR UPDATE SKIP LOCKED"), null, 'job_id'));
 
         foreach ($jobs as $job_id => $job) {
             $this->begin();
