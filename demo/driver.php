@@ -13,4 +13,5 @@ return new ryunosuke\hellowo\Driver\MySqlDriver([
     'waittime'   => 2.0,
     'waitmode'   => 'php',
     'sharedFile' => '/tmp/jobs.txt',
+    'logger'     => new ryunosuke\hellowo\Logger\EchoLogger(Psr\Log\LogLevel::DEBUG),
 ]);
