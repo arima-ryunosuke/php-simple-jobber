@@ -113,6 +113,16 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.2.5
+
+- [feature] driver にも logger を持たせる
+- [feature] ジョブが連なっているときは wait しない
+- [refactor] posix::pgrep をリライト
+- [refactor] notifyLocal とプロセス名の関係をリワーク
+- [change] interpolate で階層のないリスト配列を特別扱いする
+- [change] psr-3 的に exception というキーに例外オブジェクト以外を与えてはならない
+- [feature] restart を fork でも活かす
+
 ### 1.2.4
 
 - [feature] fork モードを仮実装
