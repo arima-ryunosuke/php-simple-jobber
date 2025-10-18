@@ -10,9 +10,14 @@ use ryunosuke\Test\AbstractTestCase;
 
 class AbstractDriverTest extends AbstractTestCase
 {
+    function createDriver()
+    {
+        return new class ( "abstract", null ) extends AbstractDriver { };
+    }
+
     function test_all()
     {
-        $driver = that(new class ( "abstract" ) extends AbstractDriver { });
+        $driver = that($this->createDriver());
 
         $driver::isEnabled()->isTrue();
 
@@ -131,7 +136,7 @@ class AbstractDriverTest extends AbstractTestCase
 
     function test_misc()
     {
-        $driver = that(new class ("") extends AbstractDriver {
+        $driver       = that(new class ("", null) extends AbstractDriver {
             protected function notify(int $count = 1): int
             {
                 return count($this->notifyLocal($count));
@@ -151,7 +156,7 @@ class AbstractDriverTest extends AbstractTestCase
 
     function test_code()
     {
-        $driver = that(new class ( "" ) extends AbstractDriver { });
+        $driver = that($this->createDriver());
 
         $driver->encode(['hoge' => 'HOGE'])->isJson();
         $driver->decode('{"hoge":"HOGE"}')->isArray();
@@ -162,7 +167,7 @@ class AbstractDriverTest extends AbstractTestCase
 
     function test_getDelay()
     {
-        $driver = that(new class ( "" ) extends AbstractDriver { });
+        $driver = that($this->createDriver());
 
         $driver->getDelay(null)->is('0.0');
         $driver->getDelay(0.5)->is('0.5');
@@ -177,7 +182,7 @@ class AbstractDriverTest extends AbstractTestCase
         $jobFilename = sys_get_temp_dir() . '/jobs.txt';
         @unlink($jobFilename);
 
-        $driver = that(new class ( "" ) extends AbstractDriver { });
+        $driver = that($this->createDriver());
 
         $driver->shareJob($jobFilename, 2, 1, fn() => [1 => ['id' => 1]], 123)->isSame([1 => ['id' => 1]]); // first
         $driver->shareJob($jobFilename, 2, 1, fn() => [2 => ['id' => 2]], 124)->isSame([1 => ['id' => 1]]); // within expiration
@@ -213,7 +218,7 @@ class AbstractDriverTest extends AbstractTestCase
 
     function test_waitTime()
     {
-        $driver = that(new class ( "" ) extends AbstractDriver { });
+        $driver = that($this->createDriver());
 
         $driver->waitTime(null, 7.89)->isSame(7.89);
         $driver->waitTime(strtotime('2014-12-24 00:00:00') + .123, 7.89)->lt(7.89);
@@ -228,7 +233,7 @@ class AbstractDriverTest extends AbstractTestCase
 
     function test_cancel()
     {
-        $driver = that(new class ( "" ) extends AbstractDriver { });
+        $driver = that($this->createDriver());
 
         $driver->cancel(-1)->wasThrown("is not supported");
     }

@@ -48,11 +48,11 @@ class BeanstalkDriver extends AbstractDriver
 
         if (is_array($options['transport'])) {
             $this->transport = $options['transport'] + ['tube' => $options['tube']];
-            parent::__construct("beanstalk {$options['transport']['host']}:{$options['transport']['port']}/{$options['tube']}");
+            parent::__construct("beanstalk {$options['transport']['host']}:{$options['transport']['port']}/{$options['tube']}", $options['logger'] ?? null);
         }
         else {
             $this->connection = $options['transport'];
-            parent::__construct("beanstalk external");
+            parent::__construct("beanstalk external", $options['logger'] ?? null);
         }
 
         $this->waittime = $options['waittime'];
@@ -61,6 +61,7 @@ class BeanstalkDriver extends AbstractDriver
     protected function getConnection()
     {
         if (!isset($this->connection)) {
+            $this->logger->info('{event}: {host}:{port}/{tube}', ['event' => 'connect', 'host' => $this->transport['host'], 'port' => $this->transport['port'], 'tube' => $this->transport['tube']]);
             $this->connection = Pheanstalk::create($this->transport['host'], $this->transport['port']);
             $this->connection->useTube($this->transport['tube']);
             $this->connection->watchOnly($this->transport['tube']);

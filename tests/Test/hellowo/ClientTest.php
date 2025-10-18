@@ -21,7 +21,7 @@ class ClientTest extends AbstractTestCase
             {
                 $this->data = &$data;
 
-                parent::__construct('');
+                parent::__construct('', null);
             }
 
             protected function setup(bool $forcibly = false): void

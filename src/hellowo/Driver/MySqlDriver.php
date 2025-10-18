@@ -86,11 +86,11 @@ class MySqlDriver extends AbstractDriver
             $options['transport']['socket']   = null;                              // for compatible php7/8
 
             $this->transport = $options['transport'] + ['database' => $options['database']];
-            parent::__construct("mysql {$this->transport['hostname']}/{$options['table']}");
+            parent::__construct("mysql {$this->transport['hostname']}/{$options['table']}", $options['logger'] ?? null);
         }
         else {
             $this->connection = $options['transport'];
-            parent::__construct("mysql {$this->connection->server_info}/{$options['table']}");
+            parent::__construct("mysql {$this->connection->server_info}/{$options['table']}", $options['logger'] ?? null);
         }
         $this->table = $options['table'];
 
@@ -108,6 +108,7 @@ class MySqlDriver extends AbstractDriver
     protected function getConnection(): mysqli
     {
         if (!isset($this->connection)) {
+            $this->logger->info('{event}: {host}:{port}/{database}#{table}', ['event' => 'connect', 'host' => $this->transport['hostname'], 'port' => $this->transport['port'], 'database' => $this->transport['database'], 'table' => $this->table]);
             $this->connection = new mysqli(...self::normalizeArguments([mysqli::class, '__construct'], $this->transport));
             if ($this->connection->connect_errno) {
                 DriverException::throw($this->connection->connect_error, $this->connection->connect_errno); // @codeCoverageIgnore
@@ -436,6 +437,8 @@ class MySqlDriver extends AbstractDriver
 
     protected function execute(string $query, array $bind = [], bool $cachePrepare = true)
     {
+        $this->logger->debug("{event}: {sql}({bind})", ['event' => 'execute', 'sql' => $query, 'bind' => $bind]);
+
         // poll called by other process for USR1
         if ($this->syscalled && isset($this->transport)) {
             $this->syscalled = false;

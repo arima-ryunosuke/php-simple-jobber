@@ -83,12 +83,12 @@ class PostgreSqlDriver extends AbstractDriver
                 'dbname'   => $options['dbname'] ?? $options['database'] ?? null,
                 //'application_name' => 'hellowo',
             ], fn($value) => $value !== '' && $value !== null);
-            parent::__construct("postgresql {$this->transport['host']}/{$options['table']}");
+            parent::__construct("postgresql {$this->transport['host']}/{$options['table']}", $options['logger'] ?? null);
         }
         else {
             $this->connection = $options['transport'];
             $hostport         = pg_host($this->connection) . ':' . pg_port($this->connection);
-            parent::__construct("postgresql {$hostport}/{$options['table']}");
+            parent::__construct("postgresql {$hostport}/{$options['table']}", $options['logger'] ?? null);
         }
         $this->table = $options['table'];
 
@@ -105,6 +105,7 @@ class PostgreSqlDriver extends AbstractDriver
     protected function getConnection()
     {
         if (!isset($this->connection)) {
+            $this->logger->info('{event}: {host}:{port}/{database}#{table}', ['event' => 'connect', 'host' => $this->transport['host'] ?? null, 'port' => $this->transport['port'] ?? null, 'database' => $this->transport['dbname'] ?? null, 'table' => $this->table]);
             $DSN = implode(' ', array_map(
                 fn($value, string $key) => sprintf("%s='%s'", $key, addslashes($value)),
                 array_values($this->transport),
@@ -357,6 +358,8 @@ class PostgreSqlDriver extends AbstractDriver
 
     protected function execute(string $query, array $bind = [], bool $cachePrepare = true)
     {
+        $this->logger->debug("{event}: {sql}({bind})", ['event' => 'execute', 'sql' => $query, 'bind' => $bind]);
+
         set_error_handler(fn() => DriverException::throw(@pg_last_error($this->getConnection())));
 
         try {

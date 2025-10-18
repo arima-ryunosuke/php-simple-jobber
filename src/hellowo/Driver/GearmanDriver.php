@@ -67,11 +67,12 @@ class GearmanDriver extends AbstractDriver
         $this->worker = new GearmanWorker();
         $this->worker->setTimeout(ceil($options['waittime'] * 1000));
 
-        parent::__construct("gearman {$options['transport']['host']}:{$options['transport']['port']}/{$options['function']}");
+        parent::__construct("gearman {$options['transport']['host']}:{$options['transport']['port']}/{$options['function']}", $options['logger'] ?? null);
     }
 
     protected function daemonize(): void
     {
+        $this->logger->info('{event}: {host}:{port}/{function}', ['event' => 'connect', 'host' => $this->host, 'port' => $this->port, 'function' => $this->function]);
         $this->worker->addServer($this->host, $this->port);
         $this->worker->addFunction($this->function, function ($job) {
             /** @var GearmanJob $job */

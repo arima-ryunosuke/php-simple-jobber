@@ -73,7 +73,7 @@ class FileSystemDriver extends AbstractDriver
         $this->waitmode  = $options['waitmode'];
         $this->ttr       = $options['ttr'];
 
-        parent::__construct("filesystem {$options['directory']}/*.{$options['extension']}");
+        parent::__construct("filesystem {$options['directory']}/*.{$options['extension']}", $options['logger'] ?? null);
     }
 
     protected function setup(bool $forcibly = false): void
@@ -102,6 +102,7 @@ class FileSystemDriver extends AbstractDriver
     protected function daemonize(): void
     {
         if ($this->waitmode === 'inotify') {
+            $this->logger->info('{event}: {directory}', ['event' => 'watch', 'directory' => $this->directory]);
             $this->inotify = inotify::init();
             $this->watcher = inotify::add_watch($this->inotify, $this->directory, inotify::IN_MOVED_TO | inotify::IN_CLOSE_WRITE);
         }

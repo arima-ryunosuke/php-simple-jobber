@@ -5,6 +5,8 @@ namespace ryunosuke\hellowo\Driver;
 use DateTime;
 use Error;
 use Exception;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use ReflectionMethod;
 use RuntimeException;
 use ryunosuke\hellowo\API;
@@ -175,9 +177,12 @@ abstract class AbstractDriver extends API
 
     private string $description;
 
-    public function __construct(string $description)
+    protected LoggerInterface $logger;
+
+    public function __construct(string $description, ?LoggerInterface $logger)
     {
         $this->description = $description;
+        $this->logger      = $logger ?? new NullLogger();
     }
 
     /**

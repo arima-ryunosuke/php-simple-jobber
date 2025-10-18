@@ -37,7 +37,7 @@ class WorkerTest extends AbstractTestCase
                 $this->select  = $select;
                 $this->standby = $standby ?? fn() => false;
                 $this->setup   = $setup ?? fn() => null;
-                parent::__construct('');
+                parent::__construct('', null);
             }
 
             public function setup(bool $forcibly = false): void
