@@ -4,6 +4,8 @@
  */
 namespace ryunosuke\hellowo\ext;
 
+use Generator;
+
 class posix
 {
     private static int $errno = 0;
@@ -74,30 +76,31 @@ class posix
         }
     }
 
-    public static function pgrep(string $pattern): array
+    public static function pgrep(string $pattern): Generator
     {
         if (DIRECTORY_SEPARATOR === '/' && file_exists("/proc")) {
-            $result = [];
-            foreach (glob("/proc/*") as $proc) {
+            $procs = glob("/proc/*");
+            shuffle($procs);
+            foreach ($procs as $proc) {
                 $pid = basename($proc);
                 if (ctype_digit($pid) && file_exists($cmdline = "$proc/cmdline")) {
                     $cmdline = trim(implode(' ', explode("\0", file_get_contents($cmdline))));
                     if (preg_match($pattern, $cmdline)) {
-                        $result[$pid] = $cmdline;
+                        yield (int) $pid => $cmdline;
                     }
                 }
             }
-            return $result;
         }
-
-        $result = [];
-        foreach ($GLOBALS['hellowo-processes'] ?? [] as $pid => $process) {
-            $cmdline = $process['cmdline'] ?? '';
-            if (preg_match($pattern, $cmdline)) {
-                $result[$pid] = $cmdline;
+        else {
+            $procs = array_keys($GLOBALS['hellowo-processes'] ?? []);
+            shuffle($procs);
+            foreach ($procs as $pid) {
+                $process = $GLOBALS['hellowo-processes'][$pid];
+                $cmdline = $process['cmdline'] ?? '';
+                if (preg_match($pattern, $cmdline)) {
+                    yield (int) $pid => $cmdline;
+                }
             }
         }
-
-        return $result;
     }
 }

@@ -32,11 +32,10 @@ abstract class API
     public function notifyLocal(int $count = 1): array
     {
         $name      = preg_quote($this->name, '/');
-        $processes = array_keys(posix::pgrep("/\\#{$name}$/"));
-        shuffle($processes);
+        $processes = posix::pgrep("/\\#{$name}$/");
 
         $result = [];
-        foreach ($processes as $pid) {
+        foreach ($processes as $pid => $cmdline) {
             $killed = false;
 
             if ($pid !== getmypid()) {

@@ -20,7 +20,7 @@ class APITest extends AbstractTestCase
 
     function test_notifyLocal()
     {
-        srand(1);
+        srand(6);
 
         $api       = that($this->createAPI());
         $api->name = 'hellowo';
@@ -31,10 +31,11 @@ class APITest extends AbstractTestCase
             $p2     = new PhpProcess($script);
             $p1->start();
             $p2->start();
+            $pid1 = $p1->getPid();
+            $pid2 = $p2->getPid();
             usleep(100 * 1000);
 
-            $api->notifyLocal(1)->is([$p1->getPid()]);
-            $api->notifyLocal(1)->is([$p2->getPid()]);
+            $api->notifyLocal(2)->equalsCanonicalizing([$pid1, $pid2]);
             $api->notifyLocal(1)->is([]);
 
             that($p1->getTermSignal())->is(pcntl::SIGUSR1);
