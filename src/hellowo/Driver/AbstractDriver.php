@@ -261,7 +261,7 @@ abstract class AbstractDriver extends API
     protected function shareJob(?string $sharedFile, float $waittime, int $nextlimit, callable $select, ?float $now = null): array
     {
         if ($sharedFile === null) {
-            return $select();
+            return $select($nextlimit);
         }
 
         $now ??= microtime(true);
@@ -287,7 +287,7 @@ abstract class AbstractDriver extends API
                 return $jobs;
             }
 
-            $jobs = $select();
+            $jobs = $select($nextlimit);
             fseek($fp, 0);
             ftruncate($fp, 0);
             fwrite($fp, json_encode([
