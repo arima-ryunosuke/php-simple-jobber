@@ -281,13 +281,14 @@ class Worker extends API
                 $e->exit();
             }
             catch (Exception $e) {
+                usleep(1 * 1000 * 1000);
                 $this->logger->error("[{mypid}]{event}: {exception}", ['event' => 'exception', 'mypid' => $mypid, 'exception' => $e]);
                 if ($this->driver->error($e)) {
                     throw $e;
                 }
-                usleep(0.1 * 1000 * 1000);
             }
             catch (Throwable $t) {
+                usleep(1 * 1000 * 1000);
                 $this->logger->critical("[{mypid}]{event}: {exception}", ['event' => 'error', 'mypid' => $mypid, 'exception' => $t]);
                 throw $t;
             }
