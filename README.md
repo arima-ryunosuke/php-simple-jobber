@@ -113,6 +113,13 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.2.6
+
+- [change] 例外キャッチ時の sleep を設定
+- [feature] systemctl status でリソースや統計が見える機能
+- [refactor] limit 指定で同じ数字を2回書くのを修正
+- [refactor] posix::pgrep を Generator 化
+
 ### 1.2.5
 
 - [feature] driver にも logger を持たせる
