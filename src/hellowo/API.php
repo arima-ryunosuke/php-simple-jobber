@@ -32,7 +32,7 @@ abstract class API
     public function notifyLocal(int $count = 1): array
     {
         $name      = preg_quote($this->name, '/');
-        $processes = posix::pgrep("/\\#{$name}$/");
+        $processes = posix::pgrep("/\\#{$name}(\(|$)/");
 
         $result = [];
         foreach ($processes as $pid => $cmdline) {

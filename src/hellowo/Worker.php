@@ -141,6 +141,7 @@ class Worker extends API
 
         // main loop
         $start           = microtime(true);
+        $laptime         = 0;
         $cycle           = 0;
         $workload        = 0;
         $continuity      = 0;
@@ -151,7 +152,22 @@ class Worker extends API
         while ($running) {
             yield $cycle;
 
+            $now = microtime(true);
+
             try {
+                // update status(per 1 second)
+                if (($now - $laptime) >= 1) {
+                    $laptime = $now;
+                    $stats   = sprintf('Time:%ss Memory:%sMB Work:%s Cycle:%s',
+                        (int) ($now - $start),
+                        number_format(memory_get_usage(true) / 1000 / 1000, 2, '.', ''),
+                        $workload,
+                        $cycle,
+                    );
+                    posix::proc_cmdline("{$cmdline}#{$this->name}($stats)");
+                    $this->logger->debug("[{mypid}]{event}: {memory}", ['event' => 'status', 'mypid' => $mypid, 'memory' => memory_get_usage(true)]);
+                }
+
                 $exitcode = ($this->restart)($start, $cycle, $workload);
                 if ($exitcode !== null) {
                     throw new ExitException("code $exitcode", $exitcode);

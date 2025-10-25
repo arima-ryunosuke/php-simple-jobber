@@ -20,7 +20,7 @@ class APITest extends AbstractTestCase
 
     function test_notifyLocal()
     {
-        srand(6);
+        srand(3);
 
         $api       = that($this->createAPI());
         $api->name = 'hellowo';
@@ -45,7 +45,8 @@ class APITest extends AbstractTestCase
         }
 
         $GLOBALS['hellowo-processes'][1234]['cmdline'] = '#hellowo';
-        $GLOBALS['hellowo-processes'][9999]['cmdline'] = '#hellowo';
+        $GLOBALS['hellowo-processes'][5678]['cmdline'] = '#helloworld';
+        $GLOBALS['hellowo-processes'][9999]['cmdline'] = '#hellowo(';
 
         $api->notifyLocal(1)->is([1234]);
 
