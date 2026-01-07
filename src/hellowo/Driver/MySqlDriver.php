@@ -264,6 +264,9 @@ class MySqlDriver extends AbstractDriver
                     elseif ($this->deadmode === 'column') {
                         $this->execute("UPDATE {$this->table} SET error = ? WHERE job_id = ?", ["$result", $job_id]);
                     }
+                    else {
+                        $this->execute("DELETE FROM {$this->table} WHERE job_id = ?", [$job_id]);
+                    }
                 }
                 $this->unshareJob($this->sharedFile, $job_id);
                 $this->commit();

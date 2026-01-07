@@ -214,6 +214,9 @@ class PostgreSqlDriver extends AbstractDriver
                     elseif ($this->deadmode === 'column') {
                         $this->execute("UPDATE {$this->table} SET error = $1 WHERE job_id = $2", ["$result", $job_id]);
                     }
+                    else {
+                        $this->execute("DELETE FROM {$this->table} WHERE job_id = $1", [$job_id]);
+                    }
                 }
                 $this->unshareJob($this->sharedFile, $job_id);
                 $this->commit();
