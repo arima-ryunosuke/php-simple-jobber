@@ -113,6 +113,11 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.2.8
+
+- Merge tag 'v1.1.13'
+  - register_shutdown_function の件は攻めすぎたので deprecated
+
 ### 1.2.7
 
 - [fixbug] deadmode を設定していないと無限リトライする不具合
