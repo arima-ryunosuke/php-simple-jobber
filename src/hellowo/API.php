@@ -141,6 +141,15 @@ abstract class API
     protected function clear(): int { }
 
     /**
+     * get message (for debug/testing)
+     *
+     * must not call this on production.
+     *
+     * @return Message[] messages
+     */
+    protected function list(): array { }
+
+    /**
      * stringify for log
      *
      * @return string log string

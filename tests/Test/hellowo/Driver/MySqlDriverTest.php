@@ -12,6 +12,7 @@ class MySqlDriverTest extends AbstractTestCase
 {
     use Traits\CancelTrait;
     use Traits\LifecycleTrait;
+    use Traits\ListTrait;
     use Traits\ShareJobTrait;
     use Traits\SleepTrait;
     use Traits\TransactionTrait;
@@ -33,6 +34,11 @@ class MySqlDriverTest extends AbstractTestCase
     function test_lifecycle()
     {
         $this->lifecycle(1, true);
+    }
+
+    function test_list()
+    {
+        $this->list();
     }
 
     function test_transaction()

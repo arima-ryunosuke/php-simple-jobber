@@ -308,4 +308,9 @@ abstract class AbstractDriver extends API
     {
         UnsupportedException::throw("cancel is not supported");
     }
+
+    protected function list(): array
+    {
+        return [];
+    }
 }

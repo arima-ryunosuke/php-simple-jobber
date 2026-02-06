@@ -79,4 +79,10 @@ class Client extends API
         $this->logger->notice("clear: {$this->logString(get_defined_vars())}");
         return $this->driver->clear();
     }
+
+    public function list(): array
+    {
+        $this->logger->notice("list: {$this->logString(get_defined_vars())}");
+        return $this->driver->list();
+    }
 }
