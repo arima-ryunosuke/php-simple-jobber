@@ -383,4 +383,25 @@ class WorkerTest extends AbstractTestCase
 
         $worker->start()->wasThrown(ExitException::class);
     }
+
+    function test_shutdown()
+    {
+        $worker = that(new Worker([
+            'work'   => function () { },
+            'driver' => $this->createDriver(function () { return null; }),
+            'logger' => new ArrayLogger($logs),
+        ]));
+
+        @trigger_error('Allowed memory size', E_USER_WARNING);
+        $worker->current = (function () {
+            yield new Message(123, 'dummy', 0);
+        })();
+        $worker->shutdown();
+
+        $worker->current->valid()->is(false);
+        that($logs)->matchesCountEquals([
+            '#^\\[\\d+\\]abort:#' => 1,
+        ]);
+        error_clear_last();
+    }
 }

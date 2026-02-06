@@ -4,6 +4,7 @@ namespace ryunosuke\hellowo;
 
 use Closure;
 use Exception;
+use Generator;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -26,6 +27,9 @@ class Worker extends API
     private int               $timeout;
     private Closure           $restart;
     private Closure           $work;
+
+    private string    $reserved;
+    private Generator $current;
 
     /**
      * constructor
@@ -61,6 +65,8 @@ class Worker extends API
         if (isset($options['work'])) {
             $this->work = $options['work'];
         }
+
+        register_shutdown_function(fn() => $this->shutdown());
     }
 
     /**
@@ -123,7 +129,7 @@ class Worker extends API
                 }
 
                 // select next job and run
-                $generator = $this->driver->select();
+                $this->current = $generator = $this->driver->select();
                 try {
                     $message = $generator->current();
                     if ($message === null) {
@@ -138,11 +144,13 @@ class Worker extends API
                         try {
                             $microtime = microtime(true);
                             pcntl::alarm($this->timeout);
+                            $this->reserved = str_repeat('x', 2 * 1024 * 1024);
                             try {
                                 $return = ($this->work)($message);
                             }
                             finally {
                                 pcntl::alarm(0);
+                                unset($this->reserved);
                             }
                             $this->logger->info("[$mypid]done: {$this->logString($return)}");
                             $generator->send(null);
@@ -234,5 +242,23 @@ class Worker extends API
 
         // default
         return fn() => null;
+    }
+
+    private function shutdown(): void
+    {
+        $error = error_get_last();
+        if ($error && stripos($error['message'], 'Allowed memory size') !== false) {
+            unset($this->reserved);
+            gc_collect_cycles();
+
+            if (isset($this->current) && $this->current->valid()) {
+                $message = $this->current->current();
+                $this->current->send(null);
+
+                $mypid  = getmypid();
+                $job_id = ($message instanceof Message ? $message->getId() : '');
+                $this->logger->alert("[$mypid]abort: $job_id");
+            }
+        }
     }
 }
