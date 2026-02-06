@@ -10,6 +10,10 @@ use ryunosuke\hellowo\Worker;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+ini_set('memory_limit', 30 * 1024 * 1024);
+ini_set('log_errors', true);
+ini_set('error_log', 'php://stderr');
+
 // create driver
 $driver = (function (string $url) {
     $xmls       = array_filter([__DIR__ . '/phpunit.xml', __DIR__ . '/phpunit.xml.dist'], 'file_exists');
@@ -68,6 +72,9 @@ $driver = (function (string $url) {
                 },
             ]);
             $worker->work(function (Message $message): string {
+                if ($message->getContents() === 'heavy') {
+                    return strlen(str_repeat($message->getContents(), 10 * 1024 * 1024));
+                }
                 if ($message->getContents() === 'retry' && $message->getRetry() < 3) {
                     throw new RetryableException(0.1);
                 }

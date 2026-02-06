@@ -2,6 +2,8 @@
 
 namespace ryunosuke\Test;
 
+use ryunosuke\hellowo\Client;
+use ryunosuke\hellowo\Driver\AbstractDriver;
 use ryunosuke\hellowo\Driver\BeanstalkDriver;
 use ryunosuke\hellowo\Driver\FileSystemDriver;
 use ryunosuke\hellowo\Driver\GearmanDriver;
@@ -23,6 +25,7 @@ class FunctionalTest extends AbstractTestCase
                 'retry'    => true,
                 'cancel'   => true,
                 'fork'     => true,
+                'list'     => true,
             ],
             'beanstalk'  => [
                 'driver'   => BeanstalkDriver::class,
@@ -32,6 +35,7 @@ class FunctionalTest extends AbstractTestCase
                 'retry'    => false,
                 'cancel'   => false,
                 'fork'     => true,
+                'list'     => false,
             ],
             'gearman'    => [
                 'driver'   => GearmanDriver::class,
@@ -41,6 +45,7 @@ class FunctionalTest extends AbstractTestCase
                 'retry'    => true,
                 'cancel'   => false,
                 'fork'     => false,
+                'list'     => false,
             ],
             'mysql'      => [
                 'driver'   => MySqlDriver::class,
@@ -50,6 +55,7 @@ class FunctionalTest extends AbstractTestCase
                 'retry'    => true,
                 'cancel'   => true,
                 'fork'     => true,
+                'list'     => true,
             ],
             'pgsql'      => [
                 'driver'   => PostgreSqlDriver::class,
@@ -59,6 +65,7 @@ class FunctionalTest extends AbstractTestCase
                 'retry'    => true,
                 'cancel'   => true,
                 'fork'     => true,
+                'list'     => true,
             ],
         ];
         $drivers = array_filter($drivers, function ($driver) {
@@ -207,6 +214,49 @@ class FunctionalTest extends AbstractTestCase
                 that(trim($output))->as('"first" should have been reached first by delay.')->prefixIs('first');
                 that(trim($output))->as('"final" should have been reached final by delay.')->suffixIs('final');
             }
+        }
+        catch (ProcessTimedOutException $ex) {
+            $this->fail($worker->getErrorOutput());
+        }
+        finally {
+            $worker->stop();
+        }
+    }
+
+    /**
+     * @dataProvider provideDriver
+     */
+    function test_shutdown($script, $options)
+    {
+        if (!$options['list']) {
+            $this->markTestSkipped();
+        }
+
+        // ready
+        (new Process([PHP_BINARY, $script, $options['dsn'], 'clear']))->run();
+
+        // start worker
+        $worker = new Process([PHP_BINARY, $script, $options['dsn'], 'worker:work']);
+        $worker->setTimeout(10);
+        $worker->start();
+
+        $client = new Client(['driver' => AbstractDriver::create($options['dsn'])]);
+        try {
+            // send heavy request
+            (new Process([PHP_BINARY, $script, $options['dsn'], 'client', 'heavy', '', 3]))->run();
+
+            sleep(1);
+            that($client->list())->count(1);
+
+            // wait error request
+            while (strpos($worker->getErrorOutput(), 'Allowed memory size') === false) {
+                $worker->getStatus();
+                $worker->checkTimeout();
+                usleep(50 * 1000);
+            }
+
+            sleep(1);
+            that($client->list())->count(0);
         }
         catch (ProcessTimedOutException $ex) {
             $this->fail($worker->getErrorOutput());

@@ -170,6 +170,11 @@ Versioning is romantic versioning(no semantic versioning).
 - [*change] drop deprecated
 - [tests] 意味の分からないコードがあったので除去
 
+### 1.1.13
+
+- [fixbug] 異常終了時に当該ジョブを実行し続けてしまう
+- [feature] list メソッドを追加
+
 ### 1.1.12
 
 - [feature] 絶え間なくジョブが実行され続けたら警告を出す

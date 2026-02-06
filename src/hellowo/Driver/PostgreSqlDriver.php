@@ -307,6 +307,16 @@ class PostgreSqlDriver extends AbstractDriver
         return $this->execute("DELETE FROM {$this->table}");
     }
 
+    protected function list(): array
+    {
+        $result = [];
+        foreach ($this->execute("SELECT * FROM {$this->table}") as $row) {
+            $job      = $this->decode($row['job_data']);
+            $result[] = new Message($row['job_id'], pg_unescape_bytea($job['contents']), $job['retry'], $job['timeout']);
+        }
+        return $result;
+    }
+
     protected function sleep(): void
     {
         if ($this->waitmode === 'sql') {

@@ -10,6 +10,7 @@ class FileSystemDriverTest extends AbstractTestCase
 {
     use Traits\CancelTrait;
     use Traits\LifecycleTrait;
+    use Traits\ListTrait;
     use Traits\SleepTrait;
 
     const DRIVER_URL = FILESYSTEM_URL;
@@ -27,6 +28,11 @@ class FileSystemDriverTest extends AbstractTestCase
 
         $driver = that(AbstractDriver::create(self::DRIVER_URL));
         that(glob($driver->directory->return() . "/.dead/*"))->count(1);
+    }
+
+    function test_list()
+    {
+        $this->list();
     }
 
     function test_mkdir()

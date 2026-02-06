@@ -221,6 +221,16 @@ class FileSystemDriver extends AbstractDriver
         return $count;
     }
 
+    protected function list(): array
+    {
+        $result = [];
+        foreach (glob("$this->directory/*.$this->extension") as $filepath) {
+            $job      = $this->decode(file_get_contents($filepath));
+            $result[] = new Message(basename($filepath), $job['contents'], $job['retry'], $job['timeout']);
+        }
+        return $result;
+    }
+
     protected function sleep(): void
     {
         if ($this->waitmode === 'inotify') {

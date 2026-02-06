@@ -237,4 +237,11 @@ class AbstractDriverTest extends AbstractTestCase
 
         $driver->cancel(-1)->wasThrown("is not supported");
     }
+
+    function test_list()
+    {
+        $driver = that($this->createDriver());
+
+        $driver->try('list')->is([]);
+    }
 }

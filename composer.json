@@ -51,7 +51,7 @@
       "@stress"
     ],
     "test": [
-      "php -d disable_functions=register_shutdown_function vendor/phpunit/phpunit/phpunit --configuration=tests/phpunit.xml"
+      "php vendor/phpunit/phpunit/phpunit --configuration=tests/phpunit.xml"
     ],
     "stress": [
       "php tests/integration.php filesystem work",

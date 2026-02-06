@@ -28,6 +28,9 @@ class Worker extends API
     private int               $timeout;
     private Closure           $restart;
 
+    private string    $reserved;
+    private Generator $current;
+
     /**
      * constructor
      *
@@ -59,16 +62,22 @@ class Worker extends API
         $this->timeout  = $options['timeout'] ?? 0;
         $this->restart  = $this->restartClosure($options['restart'] ?? null);
 
-        eval(<<<'PHP'
-        namespace {
-            if (!function_exists('register_shutdown_function')) {
+        if (function_exists('register_shutdown_function')) {
+            register_shutdown_function(fn() => $this->shutdown());
+        }
+        // for compatible
+        else {
+            // @codeCoverageIgnoreStart
+            eval(<<<'PHP'
+            namespace {
                 function register_shutdown_function(callable $callback, mixed ...$args)
                 {
                     return $GLOBALS['hellowo-shutdown_function'][] = [$callback, $args];
                 }
             }
+            PHP);
+            // @codeCoverageIgnoreEnd
         }
-        PHP);
     }
 
     /**
@@ -187,7 +196,7 @@ class Worker extends API
                 }
 
                 // select next job and run
-                $generator = $this->driver->select();
+                $this->current = $generator = $this->driver->select();
                 try {
                     /** @var ?Message $message */
                     $message = $generator->current();
@@ -202,11 +211,13 @@ class Worker extends API
                         try {
                             $microtime = microtime(true);
                             pcntl::alarm($message->getTimeout() ?: $this->timeout);
+                            $this->reserved = str_repeat('x', 2 * 1024 * 1024);
                             try {
                                 $return = $work($message);
                             }
                             finally {
                                 pcntl::alarm(0);
+                                unset($this->reserved);
                             }
                             $this->logger->info("[{mypid}]{event}: {return}", ['event' => 'done', 'mypid' => $mypid, 'return' => $this->logString($return)]);
                             $generator->send(null);
@@ -500,5 +511,23 @@ class Worker extends API
 
         // default
         return fn() => null;
+    }
+
+    private function shutdown(): void
+    {
+        $error = error_get_last();
+        if ($error && stripos($error['message'], 'Allowed memory size') !== false) {
+            unset($this->reserved);
+            gc_collect_cycles();
+
+            if (isset($this->current) && $this->current->valid()) {
+                $message = $this->current->current();
+                $this->current->send(null);
+
+                $mypid  = getmypid();
+                $job_id = ($message instanceof Message ? $message->getId() : '');
+                $this->logger->alert("[{mypid}]{event}: {job_id}", ['event' => 'abort', 'mypid' => $mypid, 'job_id' => $job_id]);
+            }
+        }
     }
 }

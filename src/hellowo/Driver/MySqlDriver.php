@@ -354,6 +354,16 @@ class MySqlDriver extends AbstractDriver
         return $this->execute("DELETE FROM {$this->table}");
     }
 
+    protected function list(): array
+    {
+        $result = [];
+        foreach ($this->execute("SELECT * FROM {$this->table}") as $row) {
+            $job      = $this->decode($row['job_data']);
+            $result[] = new Message($row['job_id'], $job['contents'], $job['retry'], $job['timeout']);
+        }
+        return $result;
+    }
+
     protected function sleep(): void
     {
         $waittime = $this->waitTime($this->starttime, $this->waittime);
