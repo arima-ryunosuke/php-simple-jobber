@@ -191,6 +191,11 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.1.13
+
+- [fixbug] 異常終了時に当該ジョブを実行し続けてしまう
+- [feature] list メソッドを追加
+
 ### 1.1.12
 
 - [feature] 絶え間なくジョブが実行され続けたら警告を出す
