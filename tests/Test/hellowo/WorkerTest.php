@@ -203,7 +203,7 @@ class WorkerTest extends AbstractTestCase
         $processData = function ($pdata) {
             $result = [];
             foreach ($pdata as $pid => $data) {
-                $result[$pid - getmypid() * 10] = $data['type'];
+                $result[] = $pid - getmypid() * 10;
             }
             return $result;
         };
@@ -211,58 +211,61 @@ class WorkerTest extends AbstractTestCase
         fwrite($ipcSockets[1], "hoge\n");
         $generator->send(0.1);
         that($processData($generator->current()))->is([
-            0 => "initial",  // initial
+            0, // initial
             // 1 is failed fork
-            2 => "initial",  // initial
-            3 => "initial",  // initial
+            2, // initial
+            3, // initial
         ]);
 
         fwrite($ipcSockets[1], str_repeat("increase\n", 9));
         $generator->send(0.1);
         that($processData($generator->current()))->is([
-            0 => "initial",  // initial
+            0, // initial
             // 1 is failed fork
-            2 => "initial",  // initial
-            3 => "initial",  // initial
-            4 => "initial",  // respawn(because 1 is failed)
-            5 => "increase", // increase
-            6 => "increase", // increase
-            7 => "increase", // increase
-            8 => "increase", // increase
+            2, // initial
+            3, // initial
+            4, // respawn(because 1 is failed)
+            5, // increase
+            6, // increase
+            7, // increase
+            8, // increase
             // 9 is busy
         ]);
 
         fwrite($ipcSockets[1], str_repeat("decrease\n", 9));
         $generator->send(0.1);
         that($processData($generator->current()))->is([
-            0 => "initial",  // initial
-            // 1 is failed fork
-            2 => "initial",  // initial
-            3 => "initial",  // respawn
-            4 => "initial",  // initial
-            // 5 is decrease
-            // 6 is decrease
-            7 => "increase", // failed kill
-            // 8 is decrease
+            // 0 is killed
+            // 1 is killed
+            // 2 is killed
+            // 3 is killed
+            // 4 is killed
+            5, // no kill
+            6, // no kill
+            7, // no kill
+            8, // no kill
         ]);
 
         fwrite($ipcSockets[1], str_repeat("increase\n", 9));
         posix::kill(getmypid(), pcntl::SIGHUP);
         $generator->send(0.1);
         that($processData($generator->current()))->is([
-            7 => "increase", // failed kill
+            // 5 is killed
+            // 6 is killed
+            7, // failed kill
+            // 8 is killed
         ]);
         $generator->send(0.1);
         that($processData($generator->current()))->is([
-            7  => "increase", // failed kill
-            // 8 is increase and failed respawn
-            // 9 is increase and failed respawn
-            // 10 is increase and failed respawn
+            7, // failed kill
+            // 9 is increase and killed
+            // 10 is increase and killed
             // 11 is failed fork
-            // 12 is increase and failed respawn
-            13 => "initial", // respawn
-            14 => "initial", // respawn
-            15 => "initial", // respawn
+            // 12 is increase and killed
+            // 13 is increase and killed
+            14, // respawn
+            15, // respawn
+            16, // respawn
         ]);
 
         $pids = $generator->current();
@@ -271,20 +274,20 @@ class WorkerTest extends AbstractTestCase
         posix::kill(getmypid(), pcntl::SIGCHLD);
         $generator->send(0.1);
         that($processData($generator->current()))->is([
-            7  => "increase", // failed kill
-            13 => "initial",  // reload
-            14 => "initial",  // reload
-            // 15 is kill and reap
+            7,  // failed kill
+            14, // reload
+            15, // reload
+            // 16 is kill and reap
         ]);
 
         fwrite($ipcSockets[1], str_repeat("increase\n", 9));
         posix::kill(getmypid(), pcntl::SIGTERM);
         $generator->send(0.1);
         that($processData($generator->getReturn()))->is([
-            7  => "increase", // failed kill
+            7,  // failed kill
+            // 14 is respawn and killed by loop end
             // 15 is respawn and killed by loop end
-            // 16 is respawn and killed by loop end
-            17 => "increase", // failed kill
+            17, // failed kill
         ]);
 
         that($logs)->matchesCountEquals([

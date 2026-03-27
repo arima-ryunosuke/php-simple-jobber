@@ -321,7 +321,7 @@ class Worker extends API
         $mypid    = getmypid();
 
         // shortcut for fork
-        $fork = function (array $pdata) use ($work, &$pids, $mypid, $ipcSockets): ?int {
+        $fork = function () use ($work, &$pids, $mypid, $ipcSockets): ?int {
             // protect signal queue from CoW
             pcntl::sigprocmask(pcntl::SIG_BLOCK, [pcntl::SIGHUP, pcntl::SIGCHLD]);
             pcntl::signal_dispatch();
@@ -333,7 +333,7 @@ class Worker extends API
 
             if ($pid > 0) {
                 $this->logger->info("[{mypid}][master]{event}: {pid}({count} count)", ['event' => 'fork', 'mypid' => $mypid, 'pid' => $pid, 'count' => count($pids) + 1]);
-                $pids[$pid] = ['time' => microtime(true)] + $pdata;
+                $pids[$pid] = ['time' => microtime(true)];
             }
             elseif ($pid === 0) {
                 // @codeCoverageIgnoreStart
@@ -408,7 +408,7 @@ class Worker extends API
                 $least = $leastCount - count($pids);
                 if ($least > 0) {
                     for ($i = 0; $i < $least; $i++) {
-                        $fork(['type' => 'initial']);
+                        $fork();
                     }
                 }
 
@@ -430,7 +430,7 @@ class Worker extends API
                                     break;
                                 case 'increase':
                                     if (count($pids) < $mostCount) {
-                                        $fork(['type' => 'increase']);
+                                        $fork();
                                     }
                                     else {
                                         $this->logger->warning('[{mypid}][master]{event}: you may need to increase $mostCount', ['event' => 'busy', 'mypid' => $mypid]);
@@ -438,10 +438,8 @@ class Worker extends API
                                     break;
                                 case 'decrease':
                                     foreach ($pids as $pid => $pdata) {
-                                        if ($pdata['type'] === 'increase') {
-                                            if ($kill($pid)) {
-                                                break;
-                                            }
+                                        if (count($pids) > $leastCount && $kill($pid)) {
+                                            break;
                                         }
                                     }
                                     break;
