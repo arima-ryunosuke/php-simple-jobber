@@ -113,6 +113,12 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.2.9
+
+- [feature] mysql の wait_timeout を指定する機能
+- [feature] ログの強化
+- [change] 増えたプロセス優先で殺す仕様を撤廃
+
 ### 1.2.8
 
 - Merge tag 'v1.1.13'
