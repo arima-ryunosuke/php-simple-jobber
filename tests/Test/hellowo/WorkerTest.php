@@ -424,8 +424,8 @@ class WorkerTest extends AbstractTestCase
         });
 
         that($logs)->matchesCountEquals([
-            '#^\\[\\d+\\]timeout: 3.\\d#' => 1,
-            '#^\\[\\d+\\]timeout: 1.\\d#' => 1,
+            '#^\\[\\d+\\]timeout: 1\\(3\.0\\d#' => 1,
+            '#^\\[\\d+\\]timeout: 2\\(1\.0\\d#' => 1,
         ]);
         that($events)->isSame([
             "timeout" => ["1", "2"],

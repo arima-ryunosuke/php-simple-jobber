@@ -219,22 +219,22 @@ class Worker extends API
                                 pcntl::alarm(0);
                                 unset($this->reserved);
                             }
-                            $this->logger->info("[{mypid}]{event}: {return}", ['event' => 'done', 'mypid' => $mypid, 'return' => $this->logString($return)]);
+                            $this->logger->info("[{mypid}]{event}: {job_id}({return})", ['event' => 'done', 'mypid' => $mypid, 'job_id' => $message->getId(), 'return' => $this->logString($return)]);
                             $generator->send(null);
                             $this->listener->onDone($message, $return);
                         }
                         catch (RetryableException $e) {
-                            $this->logger->notice("[{mypid}]{event}: {after} seconds", ['event' => 'retry', 'mypid' => $mypid, 'after' => $e->getSecond()]);
+                            $this->logger->notice("[{mypid}]{event}: {job_id}({after} seconds)", ['event' => 'retry', 'mypid' => $mypid, 'job_id' => $message->getId(), 'after' => $e->getSecond()]);
                             $generator->send($e->getSecond());
                             $this->listener->onRetry($message, $e);
                         }
                         catch (TimeoutException $e) {
-                            $this->logger->warning("[{mypid}]{event}: {elapsed} seconds", ['event' => 'timeout', 'mypid' => $mypid, 'elapsed' => $e->getElapsed($microtime)]);
+                            $this->logger->warning("[{mypid}]{event}: {job_id}({elapsed} seconds)", ['event' => 'timeout', 'mypid' => $mypid, 'job_id' => $message->getId(), 'elapsed' => $e->getElapsed($microtime)]);
                             $generator->send($e);
                             $this->listener->onTimeout($message, $e);
                         }
                         catch (Exception $e) {
-                            $this->logger->error("[{mypid}]{event}: {exception}", ['event' => 'fail', 'mypid' => $mypid, 'exception' => $e]);
+                            $this->logger->error("[{mypid}]{event}: {job_id}({exception})", ['event' => 'fail', 'mypid' => $mypid, 'job_id' => $message->getId(), 'exception' => $e]);
                             $generator->send($e);
                             $this->listener->onFail($message, $e);
                         }
