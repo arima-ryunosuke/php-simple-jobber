@@ -48,6 +48,8 @@ class MySqlDriver extends AbstractDriver
     private int   $heartbeat;
     private float $heartbeatTimer;
 
+    private int $keepAlive;
+
     private bool  $syscalled  = false;
     private array $statements = [];
 
@@ -78,6 +80,8 @@ class MySqlDriver extends AbstractDriver
             'trigger'    => true,
             // kills sleeping connections of different hosts for sudden death. requires PROCESS privileges
             'heartbeat'  => 0,
+            // value of session wait_timeout
+            'keepAlive'  => 2147483,
         ]);
 
         if (is_array($options['transport'])) {
@@ -103,6 +107,8 @@ class MySqlDriver extends AbstractDriver
 
         $this->heartbeat      = $options['heartbeat'];
         $this->heartbeatTimer = microtime(true) + $this->heartbeat;
+
+        $this->keepAlive = $options['keepAlive'];
     }
 
     protected function getConnection(): mysqli
@@ -230,6 +236,16 @@ class MySqlDriver extends AbstractDriver
             }
             return true;
         }
+    }
+
+    protected function daemonize(): void
+    {
+        if ($this->keepAlive) {
+            $this->logger->info('{event}: -', ['event' => 'daemonize']);
+            $this->getConnection()->query("SET SESSION wait_timeout = {$this->keepAlive}");
+        }
+
+        parent::daemonize();
     }
 
     protected function select(): Generator
