@@ -242,7 +242,7 @@ class FileSystemDriver extends AbstractDriver
             }
         }
         elseif ($this->waitmode === 'php') {
-            usleep(intval($this->waitTime($this->starttime, $this->waittime) * 1000 * 1000));
+            usleep(intval($this->waitTime($this->starttime, $this->waittime) * 1_000_000));
         }
     }
 

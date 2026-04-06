@@ -127,7 +127,7 @@ class FunctionalTest extends AbstractTestCase
             while (strpos($worker->getOutput(), 'final') === false) {
                 $worker->getStatus();
                 $worker->checkTimeout();
-                usleep(50 * 1000);
+                usleep(50_000);
             }
 
             $output = $worker->getOutput();
@@ -200,7 +200,7 @@ class FunctionalTest extends AbstractTestCase
             while (strpos($worker->getOutput(), 'final') === false) {
                 $worker->getStatus();
                 $worker->checkTimeout();
-                usleep(50 * 1000);
+                usleep(50_000);
             }
 
             $output = $worker->getOutput();
@@ -252,7 +252,7 @@ class FunctionalTest extends AbstractTestCase
             while (strpos($worker->getErrorOutput(), 'Allowed memory size') === false) {
                 $worker->getStatus();
                 $worker->checkTimeout();
-                usleep(50 * 1000);
+                usleep(50_000);
             }
 
             sleep(1);

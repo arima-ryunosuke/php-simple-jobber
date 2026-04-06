@@ -86,10 +86,10 @@ class Client extends API
         return $this->driver->notify($count);
     }
 
-    public function cancel(?string $job_id = null, ?string $message = null): int
+    public function cancel(?string $job_id = null, ?string $contents = null): int
     {
         $this->logger->info("{event}: {vars}", ['event' => 'cancel', 'vars' => $this->logString(get_defined_vars())]);
-        return $this->driver->cancel($job_id, $message);
+        return $this->driver->cancel($job_id, $contents);
     }
 
     public function clear(): int

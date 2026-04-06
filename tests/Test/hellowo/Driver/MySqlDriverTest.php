@@ -132,7 +132,7 @@ class MySqlDriverTest extends AbstractTestCase
             $connection = (fn() => $this->getConnection())->bindTo(MySqlDriver::create($url), MySqlDriver::class)();
             while (true) {
                 $connection->query("KILL QUERY $cid");
-                usleep(100 * 1000);
+                usleep(100_000);
             }
         });
 
@@ -235,7 +235,7 @@ class MySqlDriverTest extends AbstractTestCase
             $connection = (fn() => $this->getConnection())->bindTo(MySqlDriver::create($url), MySqlDriver::class)();
             while (true) {
                 $connection->query("KILL QUERY $cid");
-                usleep(500 * 1000);
+                usleep(500_000);
             }
         });
 

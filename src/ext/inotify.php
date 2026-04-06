@@ -57,7 +57,7 @@ class inotify
         if (function_exists('inotify_read')) {
             $read  = [$inotify_instance];
             $write = $except = null;
-            @stream_select($read, $write, $except, 0, $timeout * 1000 * 1000);
+            @stream_select($read, $write, $except, (int) $timeout, (int) (fmod($timeout, 1) * 1_000_000));
             foreach ($read as $fp) {
                 return inotify_read($fp);
             }
@@ -106,7 +106,7 @@ class inotify
             if ($events) {
                 return $events;
             }
-            usleep($timeout * 1000 * 100);
+            usleep($timeout * 100_000);
         }
         return [];
     }

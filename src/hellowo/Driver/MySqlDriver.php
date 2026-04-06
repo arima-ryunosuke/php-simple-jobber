@@ -410,7 +410,7 @@ class MySqlDriver extends AbstractDriver
                     // > SLEEP() is interrupted, it returns 1
                     if ($this->trigger && $all[0]['c']) {
                         // insert -> trigger -> cycle is may be taken down too early
-                        usleep(60 * 1000);
+                        usleep(60_000);
                     }
                 }
                 assert(!$error);
@@ -418,7 +418,7 @@ class MySqlDriver extends AbstractDriver
             } while (!$read);
         }
         elseif ($this->waitmode === 'php') {
-            usleep(intval($waittime * 1000 * 1000));
+            usleep(intval($waittime * 1_000_000));
         }
     }
 
@@ -494,7 +494,7 @@ class MySqlDriver extends AbstractDriver
                         $result->free_result();
                         return $all;
                     }
-                    return $statement->affected_rows;
+                    return (int) $statement->affected_rows;
                 }
                 catch (mysqli_sql_exception $e) {
                     if ($i < $retry && $e->getCode() === 1317 && strpos($e->getMessage(), "Query execution was interrupted") !== false) {

@@ -59,7 +59,7 @@ while (true) {
         }
         $worker->getStatus();
     }
-    usleep(50 * 1000);
+    usleep(50_000);
 }
 
 # stop process

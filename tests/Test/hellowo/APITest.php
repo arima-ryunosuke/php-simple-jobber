@@ -33,7 +33,7 @@ class APITest extends AbstractTestCase
             $p2->start();
             $pid1 = $p1->getPid();
             $pid2 = $p2->getPid();
-            usleep(100 * 1000);
+            usleep(100_000);
 
             $api->notifyLocal(2)->equalsCanonicalizing([$pid1, $pid2]);
             $api->notifyLocal(1)->is([]);

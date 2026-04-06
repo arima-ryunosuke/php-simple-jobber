@@ -108,7 +108,7 @@ class FileSystemDriverTest extends AbstractTestCase
         $this->backgroundTask(function () use ($directory) {
             while (true) {
                 touch("$directory/test.tmp");
-                usleep(100 * 1000);
+                usleep(100_000);
             }
         });
 

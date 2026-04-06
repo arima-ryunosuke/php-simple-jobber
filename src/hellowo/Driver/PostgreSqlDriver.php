@@ -324,7 +324,7 @@ class PostgreSqlDriver extends AbstractDriver
             while (true) {
                 $read  = [$socket];
                 $write = $except = null;
-                if (!@stream_select($read, $write, $except, 0, $this->waittime * 1000 * 1000)) {
+                if (!@stream_select($read, $write, $except, 0, $this->waittime * 1_000_000)) {
                     break;
                 }
                 $notify = pg_get_notify($this->getConnection());
@@ -335,7 +335,7 @@ class PostgreSqlDriver extends AbstractDriver
             fclose($socket);
         }
         elseif ($this->waitmode === 'php') {
-            usleep(intval($this->waitTime($this->starttime, $this->waittime) * 1000 * 1000));
+            usleep(intval($this->waitTime($this->starttime, $this->waittime) * 1_000_000));
         }
     }
 

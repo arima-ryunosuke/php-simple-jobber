@@ -103,7 +103,7 @@ class PostgreSqlDriverTest extends AbstractTestCase
             sleep(2);
             while (true) {
                 pg_query($connection, "NOTIFY hellowo_awake");
-                usleep(100 * 1000);
+                usleep(100_000);
             }
         });
 

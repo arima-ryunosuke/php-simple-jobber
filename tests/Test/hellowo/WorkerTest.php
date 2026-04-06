@@ -82,7 +82,7 @@ class WorkerTest extends AbstractTestCase
     {
         declare(ticks=1) {
             for ($i = 0; $i < $second * 100; $i++) {
-                usleep(10000);
+                usleep(10_000);
             }
         }
     }

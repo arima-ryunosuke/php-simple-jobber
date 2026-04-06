@@ -29,6 +29,7 @@ class Worker extends API
     private int               $timeout;
     private Closure           $restart;
 
+    /** @noinspection PhpPropertyOnlyWrittenInspection */
     private string    $reserved;
     private Generator $current;
 
@@ -186,7 +187,7 @@ class Worker extends API
                 // check standby(e.g. filesystem:unmount, mysql:replication, etc)
                 if ($stoodby && $this->driver->isStandby()) {
                     $this->logger->info("[{mypid}]{event}: {cycle}", ['event' => 'sleep', 'mypid' => $mypid, 'cycle' => $cycle]);
-                    usleep(10 * 1000 * 1000);
+                    usleep(10_000_000);
                     continue;
                 }
 
@@ -298,14 +299,14 @@ class Worker extends API
                 $e->exit();
             }
             catch (Exception $e) {
-                usleep(1 * 1000 * 1000);
+                usleep(1_000_000);
                 $this->logger->error("[{mypid}]{event}: {exception}", ['event' => 'exception', 'mypid' => $mypid, 'exception' => $e]);
                 if ($this->driver->error($e)) {
                     throw $e;
                 }
             }
             catch (Throwable $t) {
-                usleep(1 * 1000 * 1000);
+                usleep(1_000_000);
                 $this->logger->critical("[{mypid}]{event}: {exception}", ['event' => 'error', 'mypid' => $mypid, 'exception' => $t]);
                 throw $t;
             }
@@ -402,9 +403,9 @@ class Worker extends API
                     throw new ExitException("code $exitcode", $exitcode);
                 }
 
-                $waitTime        = (yield $pids) ?? 10;
+                $waitTime        = (yield $pids) ?? 10.0;
                 $waitSecond      = (int) $waitTime;
-                $waitMicrosecond = (int) (($waitTime - $waitSecond) * 1000 * 1000);
+                $waitMicrosecond = (int) (fmod($waitTime, 1) * 1_000_000);
 
                 $this->logger->debug("[{mypid}][master]{event}: {seconds} seconds", ['event' => 'ticks', 'mypid' => $mypid, 'seconds' => microtime(true) - $start]);
                 pcntl::signal_dispatch();
@@ -423,7 +424,7 @@ class Worker extends API
                 $write  = [];
                 $except = [];
                 if (@stream_select($read, $write, $except, $waitSecond, $waitMicrosecond) === false) {
-                    usleep(10 * 1000); // @codeCoverageIgnore
+                    usleep(10_000); // @codeCoverageIgnore
                 }
                 else {
                     foreach ($read as $socket) {
