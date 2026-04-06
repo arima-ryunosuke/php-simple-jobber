@@ -80,6 +80,11 @@ class ArrayListener extends AbstractListener
         $this->events['fail'][] = $message->getId();
     }
 
+    public function onError(Message $message, Throwable $t): void
+    {
+        $this->events['error'][] = $message->getId();
+    }
+
     public function onRetry(Message $message, Throwable $t): void
     {
         $this->events['retry'][] = $message->getId();

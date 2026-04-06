@@ -3,6 +3,7 @@
 namespace ryunosuke\hellowo;
 
 use Closure;
+use Error;
 use Exception;
 use Generator;
 use InvalidArgumentException;
@@ -237,6 +238,11 @@ class Worker extends API
                             $this->logger->error("[{mypid}]{event}: {job_id}({exception})", ['event' => 'fail', 'mypid' => $mypid, 'job_id' => $message->getId(), 'exception' => $e]);
                             $generator->send($e);
                             $this->listener->onFail($message, $e);
+                        }
+                        catch (Error $e) {
+                            $this->logger->critical("[{mypid}]{event}: {job}({exception})", ['event' => 'error', 'mypid' => $mypid, 'job_id' => $message->getContents(), 'exception' => $e]);
+                            $generator->send($e);
+                            $this->listener->onError($message, $e);
                         }
                         finally {
                             $this->logger->info("[{mypid}]{event}: {job_id}({elapsed} seconds)", ['event' => 'finish', 'mypid' => $mypid, 'job_id' => $message->getId(), 'elapsed' => microtime(true) - $microtime]);

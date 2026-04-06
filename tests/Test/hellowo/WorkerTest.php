@@ -468,25 +468,34 @@ class WorkerTest extends AbstractTestCase
     function test_error()
     {
         $worker = new Worker([
-            'driver'  => $this->createDriver(function () { return new Message(123, 'dummy', 0, 0); }),
+            'driver'  => $this->createDriver(function () {
+                static $count = 0;
+                $count++;
+                // error
+                if ($count === 1) {
+                    return new Message($count, $count, 0, 0);
+                }
+                throw new Error('driver error');
+            }),
             'logger'  => new ArrayLogger($logs),
             'signals' => [],
         ]);
 
         try {
-            $worker->work(function () { throw new Error('error message'); });
+            $worker->work(function () { throw new Error('worker error'); });
             $this->fail('no error');
         }
         catch (Error $e) {
-            that($e)->getMessage()->is('error message');
+            that($e)->getMessage()->is('driver error');
         }
 
         that($logs)->matchesCountEquals([
-            '#^\\[\\d+\\]start:#' => 1,
-            '#^\\[\\d+\\]begin:#' => 1,
-            '#^\\[\\d+\\]job:#'   => null,
-            '#^\\[\\d+\\]error:#' => 1,
-            '#^\\[\\d+\\]end:#'   => 0,
+            '#^\\[\\d+\\]start:#'  => 1,
+            '#^\\[\\d+\\]begin:#'  => 1,
+            '#^\\[\\d+\\]status:#' => 1,
+            '#^\\[\\d+\\]job:#'    => null,
+            '#^\\[\\d+\\]error:#'  => 2,
+            '#^\\[\\d+\\]end:#'    => 0,
         ]);
     }
 

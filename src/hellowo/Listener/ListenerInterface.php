@@ -14,6 +14,8 @@ interface ListenerInterface
 
     public function onFail(Message $message, Throwable $t): void;
 
+    public function onError(Message $message, Throwable $t): void;
+
     public function onRetry(Message $message, Throwable $t): void;
 
     public function onTimeout(Message $message, Throwable $t): void;
