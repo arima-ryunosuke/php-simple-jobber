@@ -113,6 +113,11 @@ Versioning is romantic versioning(no semantic versioning).
 - API の除去
   - protected で不要なメソッドを隠す意図の設計だったが足枷になってきている
 
+### 1.2.10
+
+- [refactor] inspection 修正
+- [feature] Throwable(Error) の特別扱いを廃止
+
 ### 1.2.9
 
 - [feature] mysql の wait_timeout を指定する機能
